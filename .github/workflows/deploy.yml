@@ -27,7 +27,7 @@ jobs:
       # Step 4: Build SvelteKit Site
       - name: Build site
         env:
-          BASE_PATH: '/${{ github.event.repository.name }}'
+          BASE_PATH: ''
         run: |
           npm run build
 
