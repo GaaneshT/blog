@@ -1,0 +1,13 @@
+---
+title: "My Post Title"
+author: "Gaanesh"
+categories: ["Security", "SvelteKit", "Malware"]
+excerpt: "A short teaser for what this post is about..."
+readingTime: 5
+draft: false
+keywords: ["svelte", "katex", "prismjs", "security"]
+date: "2025-03-30"
+---
+
+
+# Placeholder
