@@ -234,6 +234,23 @@ footer h3 {
   }
 }
 
+
+.back-button {
+  background-color: #44475a;
+  color: #f8f8f2;
+  border: none;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: #6272a4;
+}
+
+
 /* ------------------------------------------
    10) Markdown Body
    - Wrap  .md content in <div class="markdown-body"> 

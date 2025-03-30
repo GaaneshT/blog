@@ -1,0 +1,28 @@
+---
+title: "Your Blog Post Title"
+author: "Gaanesh"
+categories: ["Category1", "Category2"]
+excerpt: "A short teaser or excerpt of this post..."
+readingTime: 4
+draft: false
+keywords: ["svelte", "katex", "prismjs", "security"]
+date: "2025-03-30"
+---
+
+<script>
+  import { onMount } from 'svelte';
+  import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
+
+  onMount(() => {
+    enhanceCodeBlocks();
+    renderMath();
+  });
+</script>
+
+## Introduction
+
+Start your post content here.
+
+You can write **Markdown** normally, and KaTeX math and code blocks will auto-render.
+
+Enclose math equations in $$ <EQUATION HERE> $$

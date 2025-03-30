@@ -2,83 +2,49 @@
 	import { onMount } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { tick } from 'svelte';
-	import Prism from 'prismjs';
-	import '../app.css';
-	import 'prismjs/themes/prism-tomorrow.css';
-	import "katex/dist/katex.min.css";
-	// @ts-ignore
-	import renderMathInElement from 'katex/dist/contrib/auto-render.js';
-	import 'prismjs/components/prism-c';
-	import 'prismjs/components/prism-python.js';
-	import 'prismjs/plugins/line-numbers/prism-line-numbers.css';
-	import 'prismjs/plugins/line-numbers/prism-line-numbers.js';
-
-	function enhanceCodeBlocks() {
-		document.querySelectorAll('pre code').forEach((block) => {
-			const parent = block.parentElement;
-			if (parent && !parent.querySelector('.copy-button')) {
-				const button = document.createElement('button');
-				button.innerText = 'Copy';
-				button.className = 'copy-button';
-				parent.appendChild(button);
-
-				button.addEventListener('click', () => {
-					const text = block.textContent ?? '';
-					navigator.clipboard.writeText(text).then(() => {
-						button.innerText = 'Copied!';
-						setTimeout(() => (button.innerText = 'Copy'), 1500);
-					});
-				});
-			}
-		});
-		document.querySelectorAll('pre[class*="language-"]').forEach((block) => {
-			block.classList.add('line-numbers');
-		});
-		document.querySelectorAll('pre[class*="language-"]').forEach((block) => {
-			const match = block.className.match(/language-(\w+)/);
-			if (match) {
-				const lang = match[1];
-				block.setAttribute('data-lang', `</> ${lang.charAt(0).toUpperCase() + lang.slice(1)}`);
-			}
-		});
-		Prism.highlightAll();
-	}
-
-	function renderMath() {
-		renderMathInElement(document.body, {
-			delimiters: [
-				{ left: '$$', right: '$$', display: true },
-				{ left: '$', right: '$', display: false }
-			],
-		});
-	}
-
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
+  
+	function goHome() {
+    window.location.href = '/';
+  }
+	
+	$: isHome = $page.url.pathname === '/';
+  
 	onMount(() => {
-		// console.log("FirstLoad");
+	  console.log("FirstLoad");
+	  enhanceCodeBlocks();
+	  renderMath();
+  
+	  afterNavigate(async () => {
+		console.log('Navigation complete, enhancing code blocks and rendering math...');
+		await tick();
 		enhanceCodeBlocks();
 		renderMath();
-
-		afterNavigate(async () => {
-			// console.log("afterNavigate logged");
-			await tick();
-			enhanceCodeBlocks();
-			renderMath();
-		});
+	  });
 	});
-</script>
+  </script>
+
+{#if !isHome}
+	<header class="site-header">
+		<nav class="navbar">
+			<a on:click={goHome} class="back-button">Home</a>
+
+		</nav>
+	</header>
+{/if}
 
 <slot />
 
 <footer>
-
-
 	<div class="footer-links">
 		<a href="https://github.com/GaaneshT" target="_blank">GitHub</a>
 		<a href="https://linkedin.com/in/gaanesht" target="_blank">LinkedIn</a>
 		<a href="https://x.com/PlantSecurity" target="_blank">Twitter</a>
 	</div>
-
 </footer>
+
 
 <style>
 	.copy-button {
