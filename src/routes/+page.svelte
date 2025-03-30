@@ -77,7 +77,7 @@
 					</p>
 				{/if}
 
-				<a href={'/' + post.slug}>Read more...</a>
+				<a href={'/' + post.slug} rel="external">Read more...</a>
 
 				<!-- If you want, show lastUpdated, published, or keywords -->
 				{#if post.lastUpdated}
