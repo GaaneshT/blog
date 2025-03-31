@@ -43,7 +43,10 @@ Well… it started during my interview for RVRC. One of my interviewers, Mr Desm
 
 So I took a chance and I’m honestly so glad I did. I made some really amazing friends over that 3-day camp!
 
-![RVRC FOP Group Pic](/OG.jpg)
+<div class="image-row">
+  <img src="/OG.jpg" alt="FOP_OG" />
+  <img src="/RideOrDie.jpg" alt="Ride_Or_Die" />
+</div>
 
 
 Beyond my RC friends, I’ve also met some really talented and inspiring people in my faculty. We've stuck together since Year 1 Semester 1, all the way till now—my final semester. I genuinely couldn't have made it through without them.
