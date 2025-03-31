@@ -297,7 +297,7 @@ footer h3 {
 	color: var(--color-text);
 	background-color: #1b1b24;
 	padding: 2rem;
-	text-align: justify;
+	text-align: left;
 	border-radius: 12px;
 	box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
@@ -513,7 +513,7 @@ pre.line-numbers > code {
 	.markdown-body {
 		padding: 1.25rem;
 		font-size: 1rem;
-		text-align: center;
+		text-align: justify;
 	}
 
 	.markdown-body h1 {
