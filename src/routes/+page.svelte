@@ -43,10 +43,9 @@
 
 
 <section class="hero">
-	<h1>My Blog!</h1>
+	<h1>Hey, I’m Gaanesh!</h1>
 	<p>
-		Welcome to my corner of the web. I’m Gaanesh, an NUS InfoSec undergrad & security engineer who
-		loves diving into malware, vulnerabilities, and everything in between.
+		Exploring Cybersecurity, One Byte at a Time
 	</p>
 </section>
 
