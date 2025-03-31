@@ -2,7 +2,7 @@
 title: "What I've Been Up To in NUS"
 author: "Gaanesh"
 categories: ["NUS", "Certifications"]
-excerpt: "From CSA to NUS - here’s a glimpse into my life here"
+excerpt: "From CSA to NUS: A glimpse into my life"
 readingTime: 10
 draft: false
 date: "2025-03-31"
@@ -25,11 +25,11 @@ date: "2025-03-31"
 
 *This is my first ever blog post, so go easy on me!*
 
-Before matriculating, I got a head start through NUS’s iBLOC programme, which lets NSFs take selected modules while still in service. I applied for and got selected to read CS1010X—a foundational programming module—which helped me fast-track my university education.
+Before matriculating, I got a head start through NUS’s iBLOC programme, which lets NSFs take selected modules while still in service. I applied for and got selected to read CS1010X, a foundational programming module, which helped me fast-track my university education.
 
 Even before my matriculation in 2023, my goal has always been to graduate in 2.5 years. As of today, April 2025, I am on track with that goal and next semester would be my final semester!
 
-Right after completing my Cyber NSF stint with MINDEF, I officially matriculated into NUS. My time at the Cyber Security Agency (CSA) was truly eye-opening. Thanks to the guidance of my team leads—Fhong Sheng, Sam, and Adam—as well as the other members in Team 3, I discovered my passion for Digital Forensics and Incident Response (DFIR)!
+Right after completing my Cyber NSF stint with MINDEF, I officially matriculated into NUS. My time at the Cyber Security Agency (CSA) was truly eye-opening. Thanks to the guidance of my team leads—Fhong Sheng, Sam, and Adam — as well as the other members in Team 3, I discovered my passion for Digital Forensics and Incident Response (DFIR)!
 
 But like all things in life, it eventually came to an end and I had to start preparing for my university life that was coming up.
 
@@ -41,11 +41,10 @@ But wait... I’m an introvert, aren’t I? Why would I even go for this camp in
 
 Well… it started during my interview for RVRC. One of my interviewers, Mr Desmond Ng, told me that some of the strongest friendships and bonds are formed during this camp—and I didn’t want to miss out on that.
 
-So I took a chance—and honestly, I’m so glad I did. I made some really amazing friends over that 3-day camp!
+So I took a chance and I’m honestly so glad I did. I made some really amazing friends over that 3-day camp!
 
 ![RVRC FOP Group Pic](/OG.jpg)
 
-## Making Friends and Finding My People
 
 Beyond my RC friends, I’ve also met some really talented and inspiring people in my faculty. We've stuck together since Year 1 Semester 1, all the way till now—my final semester. I genuinely couldn't have made it through without them.
 
@@ -56,13 +55,13 @@ Shoutout to Danial who stuck with me from the very start of CSCC until now!!
   <img src="/WoO.jpg" alt="Window Of Opportunity" />
 </div>
 
-## Struggling Academically
+## Academics
 
 So… how was I doing in school?
 
 Honestly? Not great.
 
-I didn’t really enjoy the theoretical side of things, and I felt that some of the modules—especially the security modules—was outdated.
+I didn’t really enjoy the theoretical side of things, and I felt that some of the modules, especially the security ones, was outdated.
 
 That’s when I made a decision I probably should have made back when I was still in CSA: **start taking certifications**.
 
@@ -86,15 +85,14 @@ The thrill of passing OSCP was exhilarating—and I didn’t want to stop there.
 
 The **WEB-300** course was a completely different beast. At that point, school work was piling up and I didn’t have the time to dedicate to the course, so I had to pause it temporarily.
 
-## Switching Gears: GCFA and the Blue Team Path
 
-That’s when I realised—I didn’t actually have a blue team cert yet. So I pivoted and took the **GCFA certification** by **SANS/GIAC** in **June 2024**.
+That’s when I realised — I didn’t actually have a blue team cert yet. So I pivoted and took the **GCFA certification** by **SANS/GIAC** in **June 2024**.
 
 Thankfully, I was able to rely a lot on my past experience in CSA, which helped make the certification manageable.
 
 (There'll be a separate blog post on my GCFA journey!)
 
-## Summer Internship at HTX + OSWE Grind
+## Summer Internship at HTX & OSWE Grind
 
 It was summer break by then, and I was lucky enough to secure an internship at **HTX** as a **Cyber AI Analytics Intern** as a Year 1.
 
@@ -105,7 +103,7 @@ I continued studying for OSWE after working hours — and I managed to pass it i
 
 One thing I didn’t get to explore during my time at CSA was malware reverse engineering. But I was super intrigued by it and wanted to dive deeper.
 
-With **Mandiant’s Flare-On** coming up, I decided to study for—and eventually passed—the **GREM certification** by **SANS/GIAC** and use some of what I learned here in the challenge.
+With **Mandiant’s Flare-On** coming up, I decided to study for — and eventually passed — the **GREM certification** by **SANS/GIAC** and use some of what I learned here in the challenge.
 
 (Yes, another post on my GREM journey coming soon!)
 
@@ -133,4 +131,4 @@ It’s still a work in progress, but I feel like I’m getting a little closer e
 
 Right now, I'm really excited about my internship at GIC and I'm looking to make a lasting impact there!
 
-On a more bittersweet note, this semester will be my last one in RVRC. It’s been such a great experience living together my friends. Beyond that, it’s hard to believe the next semester will be my final one — but I’m definitely looking forward to my graduation trip in December 2025! :D
+On a more bittersweet note, this semester will be my last one in RVRC. It’s been such a great experience living together my friends. Beyond that, it’s hard to believe the next semester will be my final one, but I’m definitely looking forward to my graduation trip in December 2025! :D
