@@ -13,12 +13,10 @@
 	$: isHome = $page.url.pathname === '/';
   
 	onMount(() => {
-	  console.log("FirstLoad");
 	  enhanceCodeBlocks();
 	  renderMath();
   
 	  afterNavigate(async () => {
-		console.log('Navigation complete, enhancing code blocks and rendering math...');
 		await tick();
 		enhanceCodeBlocks();
 		renderMath();

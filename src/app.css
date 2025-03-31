@@ -220,18 +220,22 @@ footer h3 {
 }
 
 .image-row {
-	display: flex;
-	justify-content: center;
-	gap: 1rem;
-	margin: 2rem 0;
-	flex-wrap: wrap;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 2rem auto;
+  max-width: 100%;
 }
 
 .image-row img {
-	max-width: 100%;
-	width: 48%;
-	border-radius: 10px;
-	box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  width: calc(50% - 0.5rem); /* ensures they stay side-by-side */
+  max-width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .markdown-body img {
@@ -249,6 +253,8 @@ footer h3 {
 	transform: scale(1.02);
 	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
 }
+
+
 
 /* ---------------------------------
    9) Responsive
