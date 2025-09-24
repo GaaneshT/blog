@@ -8,15 +8,6 @@ draft: false
 date: "2025-03-31"
 ---
 
-<script>
-  import { onMount } from 'svelte';
-  import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
-
-  onMount(() => {
-    enhanceCodeBlocks();
-    renderMath();
-  });
-</script>
 
 
 
