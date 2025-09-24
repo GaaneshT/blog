@@ -102,13 +102,12 @@
 <section class="hero">
         <div class="hero-layout">
                 <div class="hero-copy">
-                        <span class="eyebrow">Cybersecurity • Systems • Curiosity</span>
+                        <span class="eyebrow">Security research • Systems tinkering • Curiosity</span>
                         <h1>
                                 Hey, I’m Gaanesh<span class="accent">.</span>
                         </h1>
                         <p>
-                                I reverse-engineer threats, share hands-on security experiments, and document
-                                the lessons learned from building resilient systems.
+                                I love Cybersecurity!
                         </p>
 
                         <div class="hero-actions">
@@ -119,28 +118,28 @@
                                                 href={'/' + featuredPost.slug}
                                                 data-sveltekit-preload-data
                                         >
-                                                Read the latest drop
+                                                Read My Latest Post
                                         </a>
 
                                 {/if}
-                                <a class="cta ghost" href="#posts">Browse the archive</a>
+                                <a class="cta ghost" href="#posts">My Previous Posts</a>
                         </div>
 
                         <div class="hero-stats">
                                 <div class="stat">
                                         <span>{totalPosts}</span>
-                                        <p>Published deep dives</p>
+                                        <p>Post in the archive</p>
                                 </div>
                                 {#if featuredPost?.date}
                                         <div class="stat">
                                                 <span>{formatDate(featuredPost.date)}</span>
-                                                <p>Latest release</p>
+                                                <p>Latest post</p>
                                         </div>
                                 {/if}
                                 {#if featuredPost?.readingTime}
                                         <div class="stat">
                                                 <span>{featuredPost.readingTime} min</span>
-                                                <p>Read time</p>
+                                                <p>Time to read</p>
                                         </div>
                                 {/if}
                         </div>
@@ -148,7 +147,7 @@
 
                 {#if featuredPost}
                         <article class="hero-feature">
-                                <span class="badge">Fresh on the blog</span>
+                                <span class="badge">New post</span>
                                 <h3>{featuredPost.title}</h3>
                                 <p>{truncateText(featuredPost.excerpt, 160)}</p>
 
@@ -173,7 +172,7 @@
                                         data-sveltekit-preload-data
                                 >
 
-                                        Read the story →
+                                        Click to read!
                                 </a>
                         </article>
                 {/if}
@@ -182,15 +181,12 @@
 
 <section class="feed" id="posts">
         <div class="feed-header">
-                <h2>Latest writing</h2>
-                <p>
-                        Field notes, exploits, and frameworks that help practitioners build safer systems and
-                        communities.
-                </p>
+                <h2>Latest Writings</h2>
+                <p>My Thinkspace</p>
         </div>
 
         {#if posts.length === 0}
-                <p class="empty-state">Stay tuned — new stories are brewing.</p>
+                <p class="empty-state">I'm still writing the next one. Check back soon.</p>
         {:else}
                 <div class="grid">
                         {#each posts as post}
@@ -224,7 +220,7 @@
                                                         data-sveltekit-preload-data
                                                 >
 
-                                                        Read article
+                                                        Read this post
                                                 </a>
                                         </div>
                                 </article>
