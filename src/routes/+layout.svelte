@@ -10,25 +10,43 @@
 	$: isHome = $page.url.pathname === '/';
   
         onMount(() => {
-          const runEnhancements = async () => {
-                await tick();
-                try {
-                        enhanceCodeBlocks();
-                        renderMath();
-                } catch (error) {
-                        console.error('Enhancement failure', error);
+                if ('scrollRestoration' in history) {
+                        history.scrollRestoration = 'manual';
                 }
-          };
 
-          runEnhancements().catch(() => {
-                /* handled in function */
-          });
+                const runEnhancements = async () => {
+                        await tick();
+                        try {
+                                enhanceCodeBlocks();
+                                renderMath();
+                        } catch (error) {
+                                console.error('Enhancement failure', error);
+                        }
+                };
 
-          afterNavigate(() => {
                 runEnhancements().catch(() => {
                         /* handled in function */
                 });
-          });
+
+                afterNavigate((navigation) => {
+                        runEnhancements().catch(() => {
+                                /* handled in function */
+                        });
+
+                        const toUrl = navigation.to?.url;
+                        if (!toUrl) {
+                                return;
+                        }
+
+                        const pathnameChanged = navigation.from?.url.pathname !== toUrl.pathname;
+                        const hasHash = toUrl.hash.length > 0;
+
+                        if (pathnameChanged && !hasHash) {
+                                requestAnimationFrame(() => {
+                                        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+                                });
+                        }
+                });
         });
   </script>
 
