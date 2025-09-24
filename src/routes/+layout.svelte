@@ -1,9 +1,11 @@
 <script>
+
         import { onMount } from 'svelte';
         import { afterNavigate } from '$app/navigation';
         import { tick } from 'svelte';
         import { page } from '$app/stores';
         import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
+
 	
 	$: isHome = $page.url.pathname === '/';
   
@@ -31,9 +33,11 @@
   </script>
 
 {#if !isHome}
+
         <header class="site-header">
                 <nav class="navbar">
                         <a href="/" class="back-button" data-sveltekit-preload-data>Home</a>
+
 
                 </nav>
         </header>
