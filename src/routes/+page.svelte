@@ -113,7 +113,15 @@
 
                         <div class="hero-actions">
                                 {#if featuredPost}
-                                        <a class="cta primary" href={'/' + featuredPost.slug}>Read the latest drop</a>
+
+                                        <a
+                                                class="cta primary"
+                                                href={'/' + featuredPost.slug}
+                                                data-sveltekit-preload-data
+                                        >
+                                                Read the latest drop
+                                        </a>
+
                                 {/if}
                                 <a class="cta ghost" href="#posts">Browse the archive</a>
                         </div>
@@ -158,7 +166,13 @@
                                         </div>
                                 {/if}
 
-                                <a class="feature-link" href={'/' + featuredPost.slug} rel="external">
+
+                                <a
+                                        class="feature-link"
+                                        href={'/' + featuredPost.slug}
+                                        data-sveltekit-preload-data
+                                >
+
                                         Read the story →
                                 </a>
                         </article>
@@ -203,7 +217,13 @@
                                                                 <span>{post.readingTime} min read</span>
                                                         {/if}
                                                 </div>
-                                                <a class="post-link" href={'/' + post.slug} rel="external">
+
+                                                <a
+                                                        class="post-link"
+                                                        href={'/' + post.slug}
+                                                        data-sveltekit-preload-data
+                                                >
+
                                                         Read article
                                                 </a>
                                         </div>

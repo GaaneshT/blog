@@ -1,36 +1,46 @@
 <script>
-	import { onMount } from 'svelte';
-	import { afterNavigate } from '$app/navigation';
-	import { tick } from 'svelte';
-	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
-  
-        function goHome() {
-                goto('/');
-        }
+
+        import { onMount } from 'svelte';
+        import { afterNavigate } from '$app/navigation';
+        import { tick } from 'svelte';
+        import { page } from '$app/stores';
+        import { enhanceCodeBlocks, renderMath } from '$lib/enhance.js';
+
 	
 	$: isHome = $page.url.pathname === '/';
   
-	onMount(() => {
-	  enhanceCodeBlocks();
-	  renderMath();
-  
-	  afterNavigate(async () => {
-		await tick();
-		enhanceCodeBlocks();
-		renderMath();
-	  });
-	});
+        onMount(() => {
+          const runEnhancements = async () => {
+                await tick();
+                try {
+                        enhanceCodeBlocks();
+                        renderMath();
+                } catch (error) {
+                        console.error('Enhancement failure', error);
+                }
+          };
+
+          runEnhancements().catch(() => {
+                /* handled in function */
+          });
+
+          afterNavigate(() => {
+                runEnhancements().catch(() => {
+                        /* handled in function */
+                });
+          });
+        });
   </script>
 
 {#if !isHome}
-	<header class="site-header">
-		<nav class="navbar">
-                        <button type="button" on:click={goHome} class="back-button">Home</button>
 
-		</nav>
-	</header>
+        <header class="site-header">
+                <nav class="navbar">
+                        <a href="/" class="back-button" data-sveltekit-preload-data>Home</a>
+
+
+                </nav>
+        </header>
 {/if}
 
 <slot />
