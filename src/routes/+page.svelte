@@ -104,7 +104,16 @@
                 <div class="hero-copy">
                         <span class="eyebrow">Security • Systems tinkering • Curiosity</span>
                         <h1>
-                                Hey, I’m Gaanesh<span class="accent">.</span>
+                                Hey, I’m
+                                <a
+                                        class="hero-name"
+                                        href="https://gaanesh.com"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                >
+                                        Gaanesh
+                                </a>
+                                <span class="accent">.</span>
                         </h1>
                         <p>
                                 I love Cybersecurity!
@@ -123,6 +132,9 @@
 
                                 {/if}
                                 <a class="cta ghost" href="#posts">My Previous Posts</a>
+
+
+
                         </div>
 
                         <div class="hero-stats">
