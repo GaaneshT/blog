@@ -102,7 +102,7 @@
 <section class="hero">
         <div class="hero-layout">
                 <div class="hero-copy">
-                        <span class="eyebrow">Security research • Systems tinkering • Curiosity</span>
+                        <span class="eyebrow">Security • Systems tinkering • Curiosity</span>
                         <h1>
                                 Hey, I’m Gaanesh<span class="accent">.</span>
                         </h1>

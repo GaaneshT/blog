@@ -652,13 +652,23 @@ footer h3 {
 
 /* Blockquote */
 .markdown-body blockquote {
+	margin: 1.75rem 0;
+	padding: 1.1rem 1.25rem 1.1rem 1.75rem;
 	border-left: 4px solid var(--color-accent);
-	padding-left: 1rem;
-	margin: 2rem 0;
-	color: #ccc;
+	background: rgba(155, 93, 245, 0.08);
+	border-radius: 10px;
+	color: rgba(244, 246, 255, 0.8);
 	font-style: italic;
-	background: rgba(155, 93, 245, 0.05);
-	border-radius: 4px;
+	position: relative;
+	box-shadow: 0 18px 40px rgba(9, 10, 22, 0.35);
+}
+
+.markdown-body blockquote > :first-child {
+	margin-top: 0;
+}
+
+.markdown-body blockquote > :last-child {
+	margin-bottom: 0;
 }
 
 /* Container for code blocks */
@@ -712,6 +722,45 @@ pre.line-numbers .line-numbers-rows > span {
 
 pre.line-numbers > code {
 	position: relative;
+}
+/* Distinguish headings from blockquotes */
+
+/* Headings get an accent underline instead of a callout background */
+.markdown-body h2,
+.markdown-body h3 {
+	border-left: none;
+	padding-left: 0;
+	background: transparent;
+	position: relative;
+	letter-spacing: 0.01em;
+}
+
+.markdown-body h2::after,
+.markdown-body h3::after {
+	content: "";
+	display: block;
+	height: 3px;
+	width: 80px;
+	margin-top: 0.5rem;
+	border-radius: 999px;
+	background: var(--gradient-accent);
+}
+
+.markdown-body h3::after {
+	height: 2px;
+	width: 54px;
+	opacity: 0.9;
+}
+
+.markdown-body blockquote::before {
+	content: "“";
+	position: absolute;
+	top: -0.65rem;
+	left: 0.65rem;
+	font-size: 3rem;
+	line-height: 1;
+	color: rgba(244, 246, 255, 0.22);
+	pointer-events: none;
 }
 
 /* Responsive */

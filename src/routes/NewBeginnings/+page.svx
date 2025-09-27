@@ -13,14 +13,14 @@ date: "2025-09-28"
 
 _Disclaimer: This isn’t a technical blog post. Just something I’ve been reflecting on lately and I wanted to write about it._
 
-### The Grind Mindset 
+## The Grind Mindset 
 
 I’m in my final semester of uni now. Since I’ve already secured a full-time job at GIC, things doesn't feel as stressful anymore. For once, I can actually learn for the sake of learning instead of stressing over min-maxing my grades. A lot of my friends are still doing that and honestly, I get it. It’s not wrong. But now that I see things differently, I keep asking myself: **was it worth it?**
 
 On one hand, I’m grateful I got into NUS. The competitive culture definitely pushed me to work harder than I thought I could, and I’ve made some amazing friends along the way. On the other hand, it also fuelled a cycle of endless grinding like chasing the next cert, the next internship, the next “edge.” Looking back, I realise I was so focused on building my resume that I didn’t give myself much space to just live and genuinely enjoy what I was doing. After all, uni is supposed to be the "*best years*" of our lives right? 
-> *Best years... unless you count the sleepless nights debugging code at 4 am* 💀
+> ***Best years... unless you count the sleepless nights debugging code at 4 am*** 💀
 
-### What I Gave Up
+## What I Gave Up
 
 In 2024, I spent most of my time chasing certifications (OSCP, OSWE, GREM, GCFA, CEH lol) and overloading every semester so I could graduate in 2.5 years instead of the usual 4. I do not regret the grind since it taught me discipline, but looking back, I cannot ignore what I gave up. The hobbies I tried never stuck, I neglected my friends, and I lost the freedom to explore things just for fun. Back then, I convinced myself that those “non-productive” things would not get me anywhere, so I always ended up back at schoolwork and certs. Even games I used to love, like CS:GO(now CS2) and League, felt like a complete waste of time. I couldn't even sit through one match. (Sorry to my team for the rage quits..) But maybe that mindset was **the problem**. I treated hobbies like they had to prove something, when really, they were just supposed to make me happy. I even went from doomscrolling reddit to doomscrolling linkedin (can u believe it?🤡)
 
@@ -43,12 +43,12 @@ Feels really nice to plan things for the experience, not for the resume.
 
 I’m also really grateful to my mentors and friends who’ve supported me throughout this journey. My mentors gave me the guidance and tough feedback I needed when I had tunnel vision, and they reminded me to think about the bigger picture. My friends kept me sane through all the stress. Some of my best memories from uni are the late night chats in our dorm rooms at RV, the ML nights where we somehow lost 7 games in a row (that’s actually impressive), and the countless suppers that made me fat. Those moments reminded me that life in uni was more than just a grind.
 
-**If** I had to change one thing, it’d be fewer suppers… but hey, 
-> “A moment on the lips, a lifetime on the hips.”
+**If** I had to change one thing, it’d be fewer suppers… cause hey, 
+> **A moment on the lips, a lifetime on the hips**
 
 right?
 
-### Wrapping up
+## Wrapping up
 
 So.. while I say it's the end, I really meant its the start of a new beginning.
 
