@@ -11,19 +11,29 @@ date: "2025-09-28"
 
 # Now that things are ending, was everything up till now worth it?
 
-_Disclaimer: This isn’t a technical blog. Just something I’ve been reflecting on lately and I wanted to write about it._
+_Disclaimer: This isn’t a technical blog post. Just something I’ve been reflecting on lately and I wanted to write about it._
 
-I’m in my final semester of uni now. Since I’ve already secured a full-time job at GIC, things don’t feel as stressful anymore. For once, I can actually learn for the sake of learning instead of stressing over min-maxing grades. A lot of my friends are still doing that and honestly, I get it. It’s not wrong. But now that I see things differently, I keep asking myself: **was it worth it?**
+### The Grind Mindset 
 
-On one hand, I’m grateful I got into NUS. The competitive culture definitely pushed me to work harder than I thought I could, and I’ve made some amazing friends along the way. On the other hand, it also fuelled a cycle of endless grinding like chasing the next cert, the next internship, the next “edge.” Looking back, I realise I was so focused on building my resume that I didn’t give myself much space to just live and genuinely enjoy what I was doing. After all, uni is supposed to be the "*best years*" of our lives right? *Best years... unless you count the sleepless nights debugging code at 4 am* 💀
+I’m in my final semester of uni now. Since I’ve already secured a full-time job at GIC, things doesn't feel as stressful anymore. For once, I can actually learn for the sake of learning instead of stressing over min-maxing my grades. A lot of my friends are still doing that and honestly, I get it. It’s not wrong. But now that I see things differently, I keep asking myself: **was it worth it?**
+
+On one hand, I’m grateful I got into NUS. The competitive culture definitely pushed me to work harder than I thought I could, and I’ve made some amazing friends along the way. On the other hand, it also fuelled a cycle of endless grinding like chasing the next cert, the next internship, the next “edge.” Looking back, I realise I was so focused on building my resume that I didn’t give myself much space to just live and genuinely enjoy what I was doing. After all, uni is supposed to be the "*best years*" of our lives right? 
+> *Best years... unless you count the sleepless nights debugging code at 4 am* 💀
+
+### What I Gave Up
 
 In 2024, I spent most of my time chasing certifications (OSCP, OSWE, GREM, GCFA, CEH lol) and overloading every semester so I could graduate in 2.5 years instead of the usual 4. I do not regret the grind since it taught me discipline, but looking back, I cannot ignore what I gave up. The hobbies I tried never stuck, I neglected my friends, and I lost the freedom to explore things just for fun. Back then, I convinced myself that those “non-productive” things would not get me anywhere, so I always ended up back at schoolwork and certs. Even games I used to love, like CS:GO(now CS2) and League, felt like a complete waste of time. I couldn't even sit through one match. (Sorry to my team for the rage quits..) But maybe that mindset was **the problem**. I treated hobbies like they had to prove something, when really, they were just supposed to make me happy. I even went from doomscrolling reddit to doomscrolling linkedin (can u believe it?🤡)
 
+## A Shift in Perspective  
+
 Now that the job-hunting stress is behind me, I’m rethinking what “worth it” even means.. Grades, certs and even competitions doesn't feel important anymore. Of course, I know I can only say this because I already have a job lined up, and that’s a privilege not everyone has. But from my POV now, I’ve learnt that achievements matter less when they come at the cost of balance.
 
-So what am I doing differently? I’ve started doing things i genuinely want to try. Not for the resume, but because I want to. Stuff like learning Mandarin Chinese (I learnt the hard way that “strawberry” is a dangerous word), spending more time with friends, blogging, and working on myself physically (I’ve lost weight!!). Recently, I’ve also gotten super into iPhone teardowns and third-party mods. I’m planning to repair an iPhone and upgrade its storage soon. My time in SP studying aerospace electronics is finally going to come in handy :D. Without the pressure of optimising every single thing, life feels lighter, and for the first time in a while, fun.
+So what am I doing differently? I’ve started doing things i genuinely want to try. Not for the resume, but because I want to. Stuff like learning Mandarin Chinese (I learnt the hard way that “strawberry” is a dangerous word), spending more time with friends, blogging, and working on myself physically (I’ve lost weight!!). Recently, I’ve also gotten super into iPhone teardowns and third-party mods. I’m planning to repair an iPhone and upgrade its storage soon. My time in SP studying aerospace electronics is finally going to come in handy :D. Without the pressure of optimising every single thing, life feels lighter and more fun.
 
-Okay, I said lighter, but not weightless. I still have my OSED exam coming up in late October. And despite wanting to care less about school, I know I can’t completely slack off. One quote that stuck with me is: **“How you do anything is how you do everything.”** So even if I’m trying to find balance, I still want to finish strong.
+Okay, I said lighter, but not weightless. I still have my OSED exam coming up in late October. And despite wanting to care less about school, I know I can’t completely slack off. One quote that stuck with me is: 
+> **“How you do anything is how you do everything.”** 
+
+So even if I’m trying to find balance, I still want to finish strong.
 
 On the fun side, I’ve got two grad trips lined up that I’m really looking forward to:
 1. **Japan** with [Lisa](https://www.linkedin.com/in/lisa-lim-yu-qi-900342218/) and [DingHan](https://www.linkedin.com/in/dinghanlim/)!
@@ -33,11 +43,17 @@ Feels really nice to plan things for the experience, not for the resume.
 
 I’m also really grateful to my mentors and friends who’ve supported me throughout this journey. My mentors gave me the guidance and tough feedback I needed when I had tunnel vision, and they reminded me to think about the bigger picture. My friends kept me sane through all the stress. Some of my best memories from uni are the late night chats in our dorm rooms at RV, the ML nights where we somehow lost 7 games in a row (that’s actually impressive), and the countless suppers that made me fat. Those moments reminded me that life in uni was more than just a grind.
 
-**If** I had to change one thing, it’d be fewer suppers… but hey, “a moment on the lips, a lifetime on the hips.”
+**If** I had to change one thing, it’d be fewer suppers… but hey, 
+> “A moment on the lips, a lifetime on the hips.”
+
+right?
+
+### Wrapping up
 
 So.. while I say it's the end, I really meant its the start of a new beginning.
 
-Oh right, I mentioned **weight loss**. Here's my progress (feat. Stella)!
+Oh right, I mentioned **weight loss**. Here's my progress (feat. Stella):
+
 **Before:** 23 Jun 2025  
 **After:** 13 Sep 2025
 
