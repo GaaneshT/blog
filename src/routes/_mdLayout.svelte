@@ -1,11 +1,16 @@
 <script>
   import { page } from '$app/stores';
 
+  export let title = '';
+  export let description = '';
+  export let excerpt = '';
+  export let slug = '';
   export let metadata = {};
 
   import '../app.css';
 
   const SITE_URL = 'https://blog.gaanesh.com';
+  const OG_BASE_PATH = '/og';
   const DEFAULT_DESCRIPTION = 'Gaanesh shares notes on security, systems, and personal growth.';
 
   const slugifySegment = (segment) =>
@@ -15,11 +20,16 @@
       .replace(/-+/g, '-')
       .toLowerCase();
 
+  const withTrailingSlash = (path) => (path === '/' ? '/' : path.replace(/\/+$/, '') + '/');
+
   $: pathname = $page.url.pathname;
-  $: rawFrontmatterSlug =
-    typeof metadata.slug === 'string' && metadata.slug.trim() !== ''
-      ? metadata.slug.trim().replace(/^\/+|\/+$/g, '')
-      : '';
+  $: rawFrontmatterSlug = (() => {
+    const fromProp = typeof slug === 'string' && slug.trim() !== '' ? slug : null;
+    const fromMetadata =
+      typeof metadata.slug === 'string' && metadata.slug.trim() !== '' ? metadata.slug : null;
+    const resolved = (fromProp ?? fromMetadata ?? '').trim();
+    return resolved.replace(/^\/+|\/+$/g, '');
+  })();
   $: frontmatterSlug = rawFrontmatterSlug
     ? rawFrontmatterSlug
         .split('/')
@@ -27,32 +37,36 @@
         .map(slugifySegment)
         .join('/')
     : '';
-  $: canonicalPath = frontmatterSlug
-    ? `/${frontmatterSlug}`
-    : (() => {
-        const segments = pathname.split('/').filter(Boolean);
-        if (segments.length === 0) return '/';
-        const canonicalSegments = segments.map(slugifySegment).filter(Boolean);
-        return canonicalSegments.length ? `/${canonicalSegments.join('/')}` : '/';
-      })();
+  $: canonicalPath = (() => {
+    const base = frontmatterSlug
+      ? `/${frontmatterSlug}`
+      : (() => {
+          const segments = pathname.split('/').filter(Boolean);
+          if (segments.length === 0) return '/';
+          const canonicalSegments = segments.map(slugifySegment).filter(Boolean);
+          return canonicalSegments.length ? `/${canonicalSegments.join('/')}` : '/';
+        })();
+    return withTrailingSlash(base);
+  })();
   $: canonicalUrl = `${SITE_URL}${canonicalPath}`;
 
-  $: title = metadata.title || 'Gaanesh — Blog';
-  $: description = metadata.description || metadata.excerpt || DEFAULT_DESCRIPTION;
+  $: pageTitle = title || metadata.title || 'Gaanesh — Blog';
+  $: pageDescription =
+    description || metadata.description || excerpt || metadata.excerpt || DEFAULT_DESCRIPTION;
   $: computedOgSlug = frontmatterSlug || pathname.replace(/^\/+|\/+$/g, '');
   $: ogImageSlug = computedOgSlug || 'default';
-  $: ogImage = `${SITE_URL}/static/og/${ogImageSlug}.jpg`;
+  $: ogImage = `${SITE_URL}${OG_BASE_PATH}/${ogImageSlug}.jpg`;
 </script>
 
 <svelte:head>
-  <title>{title}</title>
-  {#if description}
-    <meta name="description" content={description} />
-    <meta property="og:description" content={description} />
+  <title>{pageTitle}</title>
+  {#if pageDescription}
+    <meta name="description" content={pageDescription} />
+    <meta property="og:description" content={pageDescription} />
   {/if}
   <link rel="canonical" href={canonicalUrl} />
   <meta property="og:type" content="article" />
-  <meta property="og:title" content={title} />
+  <meta property="og:title" content={pageTitle} />
   <meta property="og:url" content={canonicalUrl} />
   <meta property="og:image" content={ogImage} />
   <meta name="twitter:card" content="summary_large_image" />
