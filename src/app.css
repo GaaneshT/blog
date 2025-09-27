@@ -214,6 +214,8 @@ a:hover {
         flex-direction: column;
         gap: 1.25rem;
         position: relative;
+        text-decoration: none;
+        color: inherit;
 }
 .hero-feature::after {
         content: '';
@@ -256,7 +258,7 @@ a:hover {
         font-weight: 600;
         color: #f4f6ff;
 }
-.feature-link:hover {
+.hero-feature:hover .feature-link {
         color: #ffffff;
 }
 
@@ -325,6 +327,9 @@ a:hover {
         border: 1px solid rgba(244, 246, 255, 0.04);
         transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
         backdrop-filter: blur(12px);
+        text-decoration: none;
+        color: inherit;
+        cursor: pointer;
 }
 .post-card::after {
         content: '';
@@ -374,7 +379,7 @@ a:hover {
         transition: color 0.2s ease;
         white-space: nowrap;
 }
-.post-link:hover {
+.post-card:hover .post-link {
         color: #ffffff;
 }
 /* ---------------------------------

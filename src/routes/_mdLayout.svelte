@@ -1,5 +1,5 @@
 <script>
-  import '../app.css';              // loads global + markdown styles
+  import '../app.css';             
 </script>
 
 <div class="markdown-body">

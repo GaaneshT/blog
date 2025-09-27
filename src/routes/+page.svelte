@@ -146,7 +146,11 @@
                 </div>
 
                 {#if featuredPost}
-                        <article class="hero-feature">
+                        <a
+                                class="hero-feature"
+                                href={'/' + featuredPost.slug}
+                                data-sveltekit-preload-data
+                        >
                                 <span class="badge">New post</span>
                                 <h3>{featuredPost.title}</h3>
                                 <p>{truncateText(featuredPost.excerpt, 160)}</p>
@@ -166,15 +170,8 @@
                                 {/if}
 
 
-                                <a
-                                        class="feature-link"
-                                        href={'/' + featuredPost.slug}
-                                        data-sveltekit-preload-data
-                                >
-
-                                        Click to read!
-                                </a>
-                        </article>
+                                <span class="feature-link">Click to read!</span>
+                        </a>
                 {/if}
         </div>
 </section>
@@ -190,7 +187,11 @@
         {:else}
                 <div class="grid">
                         {#each posts as post}
-                                <article class={`post-card ${post.slug === featuredPost?.slug ? 'is-featured' : ''}`}>
+                                <a
+                                        class={`post-card ${post.slug === featuredPost?.slug ? 'is-featured' : ''}`}
+                                        href={'/' + post.slug}
+                                        data-sveltekit-preload-data
+                                >
                                         <div class="card-top">
                                                 <h3>{post.title}</h3>
                                                 <p class="excerpt">{truncateText(post.excerpt, 130)}</p>
@@ -214,16 +215,9 @@
                                                         {/if}
                                                 </div>
 
-                                                <a
-                                                        class="post-link"
-                                                        href={'/' + post.slug}
-                                                        data-sveltekit-preload-data
-                                                >
-
-                                                        Read this post
-                                                </a>
+                                                <span class="post-link">Read this post</span>
                                         </div>
-                                </article>
+                                </a>
                         {/each}
                 </div>
         {/if}
