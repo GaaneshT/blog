@@ -3,9 +3,11 @@ title: "Now that things are ending, was it worth it?"
 author: "Gaanesh"
 categories: ["NUS", "Reflections", "Personal Growth"]
 excerpt: "Final semester thoughts: grinding, FOMO, and learning to find balance"
+description: "Final semester thoughts: grinding, FOMO, and learning to find balance"
 readingTime: 8
 draft: false
 date: "2025-09-28"
+slug: "new-beginnings"
 ---
 
 

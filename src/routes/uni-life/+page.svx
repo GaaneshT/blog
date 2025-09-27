@@ -3,9 +3,11 @@ title: "What I've Been Up To in NUS"
 author: "Gaanesh"
 categories: ["NUS", "Certifications"]
 excerpt: "From CSA to NUS: A glimpse into my life"
+description: "From CSA to NUS: A glimpse into my life"
 readingTime: 10
 draft: false
 date: "2025-03-31"
+slug: "uni-life"
 ---
 
 

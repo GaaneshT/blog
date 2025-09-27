@@ -12,6 +12,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
+		"generate:og": "node scripts/generate-og.mjs",
 		"deploy": "npm run build && echo 'blog.gaanesh.com' > build/CNAME && npx gh-pages -d build"
 	},
 	"devDependencies": {
@@ -21,10 +22,12 @@
 		"@tailwindcss/vite": "^4.0.0",
 		"@types/prismjs": "^1.26.5",
 		"gh-pages": "^6.3.0",
+		"gray-matter": "^4.0.3",
 		"mdsvex": "^0.12.3",
 		"prettier": "^3.4.2",
 		"prettier-plugin-svelte": "^3.3.3",
 		"prettier-plugin-tailwindcss": "^0.6.11",
+		"sharp": "^0.34.4",
 		"svelte": "^5.0.0",
 		"svelte-check": "^4.0.0",
 		"tailwindcss": "^4.0.0",

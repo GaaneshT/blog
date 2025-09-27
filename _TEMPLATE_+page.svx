@@ -3,10 +3,12 @@ title: "Your Blog Post Title"
 author: "Gaanesh"
 categories: ["Category1", "Category2"]
 excerpt: "A short teaser or excerpt of this post..."
+description: "A short teaser or excerpt of this post..."
 readingTime: 4
 draft: false
 keywords: ["svelte", "katex", "prismjs", "security"]
 date: "2025-03-30"
+slug: "your-slug-here"
 ---
 
 <script>
