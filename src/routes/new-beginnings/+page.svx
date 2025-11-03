@@ -53,12 +53,3 @@ right?
 ## Wrapping up
 
 So.. while I say it's the end, I really meant its the start of a new beginning.
-
-Oh right, I mentioned **weight loss**. Here's my progress (feat. Stella):
-
-**Before:** 23 Jun 2025  
-**After:** 13 Sep 2025
-
-<div class="image-row">
-  <img src="/WeightLoss.JPG" alt="Weight loss progress" />
-</div>
