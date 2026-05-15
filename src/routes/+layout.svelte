@@ -1,60 +1,36 @@
 <!-- src/routes/+layout.svelte -->
-<script>
-  import { afterNavigate } from '$app/navigation';
-  import { page } from '$app/stores';
+<script lang="ts">
   import '../app.css';
+  import { afterNavigate } from '$app/navigation';
+  import Backdrop from '$lib/components/Backdrop.svelte';
+  import Nav from '$lib/components/Nav.svelte';
+  import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import Footer from '$lib/components/Footer.svelte';
 
-  $: isHome = $page.url.pathname === '/';
+  let paletteOpen = false;
 
-  // Optional: keep a simple scroll-to-top for normal navigations
   afterNavigate(({ to, from }) => {
-    if (!to.hash && from?.url.pathname !== to.url.pathname) {
+    if (!to?.url?.hash && from?.url.pathname !== to?.url.pathname) {
       window.scrollTo(0, 0);
     }
   });
 </script>
 
-{#if !isHome}
-  <header class="site-header">
-    <nav class="navbar">
-      <a href="/" class="back-button" data-sveltekit-preload-data>Home</a>
-    </nav>
-  </header>
-{/if}
+<Backdrop />
 
-<slot />
+<Nav onOpenPalette={() => (paletteOpen = true)} />
 
-<footer>
-  <div class="footer-links">
-    <a href="https://github.com/GaaneshT" target="_blank">GitHub</a>
-    <a href="https://linkedin.com/in/gaanesht" target="_blank">LinkedIn</a>
-    <a href="https://x.com/PlantSecurity" target="_blank">Twitter</a>
-  </div>
-</footer>
+<CommandPalette bind:open={paletteOpen} />
 
+<a
+  href="#top"
+  class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-ink-900 focus:px-3 focus:py-1.5 focus:text-sm focus:text-white"
+>
+  Skip to content
+</a>
 
+<div id="top">
+  <slot />
+</div>
 
-<style>
-        :global(.copy-button) {
-                position: absolute;
-                top: 0.75rem;
-                right: 0.75rem;
-                background-color: #44475a;
-                color: #f8f8f2;
-                border: none;
-                padding: 0.3rem 0.6rem;
-                font-size: 0.75rem;
-                border-radius: 4px;
-                cursor: pointer;
-                transition: background 0.2s ease;
-                z-index: 10;
-        }
-
-        :global(.copy-button:hover) {
-                background-color: #6272a4;
-        }
-
-        :global(pre) {
-                position: relative;
-        }
-</style>
+<Footer />
