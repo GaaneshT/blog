@@ -988,7 +988,7 @@ if __name__ == '__main__':
     log.success(f'FLAG: {flag}') if flag else log.failure('no flag')
 ```
 
-### Flag (Local)
+## Flag (Local)
 
 ```
 CDDC2026{TEST_FLAG_LOCAL_1779070453}
