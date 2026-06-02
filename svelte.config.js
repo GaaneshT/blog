@@ -1,5 +1,6 @@
 import { mdsvex } from 'mdsvex';
 import remarkMath from 'remark-math';
+import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
 import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
@@ -13,7 +14,7 @@ const config = {
     vitePreprocess(),
     mdsvex({
       extensions: ['.md', '.svx'],
-      remarkPlugins: [remarkMath],
+      remarkPlugins: [remarkGfm, remarkMath],
       rehypePlugins: [rehypeKatex],
       layout: {
         _: './src/routes/_mdLayout.svelte'
