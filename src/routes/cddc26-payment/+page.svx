@@ -13,9 +13,13 @@ slug: "cddc26-payment"
 
 # payment - CDDC2026
 
+> *Before you continue reading, I was not able to solve this during the challenge window(sad..).  I continued working on it after the quals ended as I was curious, and my writeup and learning reflections here were assisted with AI (Opus 4.7)*
+
 A 117 KB stripped C++ ELF that speaks a custom binary protocol on TCP/22222 inside an nsjail (Google's process sandbox that combines chroot, namespaces, seccomp, and resource limits to confine a target binary). Full mitigations (RELRO, canary, NX, PIE, plus IBT/SHSTK metadata). Flag is in `/flag` inside the chroot (the kernel call that swaps a process's view of `/` for some other directory - everything outside the new root effectively disappears for that process).
 
-This writeup walks through how I went from zero to RCE: what each piece of recon told me, what the bugs were, why the first few attempts didn't work, and which observations actually broke the binary open. Every command in here is one I ran; every output block is the literal response.
+This writeup walks through how I got RCE and what each piece of recon told me, what the bugs were, why the first few attempts didn't work, and which observations actually broke the binary open. Every command in here is one I ran; every output block is the literal response.
+
+
 
 ## What you'll want to know
 
