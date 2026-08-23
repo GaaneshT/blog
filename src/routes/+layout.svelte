@@ -16,9 +16,9 @@
 
 <div class="wrap">
   <Bar />
-  <div id="top">
+  <main id="top">
     <slot />
-  </div>
+  </main>
 </div>
 
 <Footer />

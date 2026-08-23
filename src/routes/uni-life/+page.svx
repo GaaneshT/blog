@@ -14,8 +14,6 @@ slug: "uni-life"
 
 
 
-# What I've Been Up To in NUS
-
 *This is my first ever blog post, so go easy on me!*
 
 Before matriculating, I got a head start through NUS’s iBLOC programme, which lets NSFs take selected modules while still in service. I applied for and got selected to read CS1010X, a foundational programming module, which helped me fast-track my university education.

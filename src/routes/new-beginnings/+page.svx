@@ -11,8 +11,6 @@ slug: "new-beginnings"
 ---
 
 
-# Now that things are ending, was everything up till now worth it?
-
 _Disclaimer: This isn’t a technical blog post. Just something I’ve been reflecting on lately and I wanted to write about it._
 
 ## The Grind Mindset 

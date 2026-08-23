@@ -11,8 +11,6 @@ date: "2026-08-07"
 slug: "ai-red-teaming"
 ---
 
-# OSAI: did AI actually make me better at red teaming?
-
 _Disclaimer: This is a deliberately redacted account of an authorized certification lab. I am not going to share the exam topology, hostnames, IP addresses, credentials, flags, payloads, or a step-by-step solution. I just wanted to write about what it was like using AI throughout the exam and what I learnt from it._
 
 ## Going into the exam

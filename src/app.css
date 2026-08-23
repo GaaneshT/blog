@@ -236,6 +236,17 @@ footer a:hover { color: var(--blue); }
 .markdown-body {
   max-width: 36em;
   margin-top: 34px;
+  /* Long bare URLs in prose were pushing the document past the viewport on
+     narrow screens. Break them rather than let the page scroll sideways. */
+  overflow-wrap: anywhere;
+}
+
+.markdown-body pre,
+.markdown-body table {
+  /* Code and tables keep their own horizontal scroller instead of widening
+     the page. */
+  max-width: 100%;
+  overflow-wrap: normal;
 }
 
 .markdown-body p {
@@ -261,9 +272,6 @@ footer a:hover { color: var(--blue); }
 }
 .markdown-body h1 { font-size: clamp(26px, 3.2vw, 32px); margin: 44px 0 16px; letter-spacing: -0.028em; }
 
-/* Posts open with an H1 that repeats the frontmatter title, which is already
-   rendered in .phead. Hide the duplicate rather than editing every post. */
-.markdown-body > h1:first-child { display: none; }
 .markdown-body h2 { font-size: 26px; margin: 42px 0 15px; }
 .markdown-body h3 { font-size: 22px; margin: 38px 0 14px; }
 .markdown-body h4 { font-size: 19px; margin: 32px 0 12px; }
