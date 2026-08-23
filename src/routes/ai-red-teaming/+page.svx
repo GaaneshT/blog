@@ -1,17 +1,17 @@
 ---
-title: "Did AI Actually Make Me Better at Red Teaming?"
+title: "OSAI: Did AI Actually Make Me Better at Red Teaming?"
 author: "Gaanesh"
-categories: ["AI Security", "Red Teaming", "Offensive Security"]
-excerpt: "My experience using AI assistants during a multi-host red-team exam, where they helped most when I was stuck, but never replaced operator judgment."
-description: "My experience using AI assistants during a multi-host red-team exam, where they helped most when I was stuck, but never replaced operator judgment."
+categories: ["OSAI", "AI Security", "Red Teaming"]
+excerpt: "Notes from the OffSec AI Red Teamer (OSAI) exam: where AI assistants helped most when I was stuck, and where they never replaced operator judgment."
+description: "Notes from the OffSec AI Red Teamer (OSAI) exam: where AI assistants helped most when I was stuck, and where they never replaced operator judgment."
 readingTime: 10
 draft: false
-keywords: ["ai-security", "red-teaming", "llm-security", "offensive-security", "lessons-learned"]
+keywords: ["osai", "offsec", "ai-security", "red-teaming", "llm-security", "offensive-security", "certification"]
 date: "2026-08-07"
 slug: "ai-red-teaming"
 ---
 
-# Did AI actually make me better at red teaming?
+# OSAI: did AI actually make me better at red teaming?
 
 _Disclaimer: This is a deliberately redacted account of an authorized certification lab. I am not going to share the exam topology, hostnames, IP addresses, credentials, flags, payloads, or a step-by-step solution. I just wanted to write about what it was like using AI throughout the exam and what I learnt from it._
 

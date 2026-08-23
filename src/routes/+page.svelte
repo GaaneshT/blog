@@ -21,6 +21,16 @@
     name="description"
     content="Notes on security work, studying at NUS, and what I have figured out along the way."
   />
+  <link rel="canonical" href="https://blog.gaanesh.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Writing — {identity.name}" />
+  <meta
+    property="og:description"
+    content="Notes on security work, studying at NUS, and what I have figured out along the way."
+  />
+  <meta property="og:url" content="https://blog.gaanesh.com/" />
+  <meta property="og:image" content="https://blog.gaanesh.com/og/default.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <div class="phead">
