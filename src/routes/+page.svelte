@@ -1,33 +1,59 @@
 <script lang="ts">
-  import Hero from '$lib/components/Hero.svelte';
-  import PromptHeading from '$lib/components/PromptHeading.svelte';
-  import PostCard from '$lib/components/PostCard.svelte';
+  import PostRow from '$lib/components/PostRow.svelte';
+  import Contact from '$lib/components/Contact.svelte';
   import { reveal } from '$lib/reveal';
-  import { posts, postCount } from '$lib/posts';
+  import { posts, type Post } from '$lib/posts';
+  import { identity, links } from '$lib/identity';
+
+  // posts is already sorted newest first, so years come out newest first too.
+  const groups: { year: string; items: Post[] }[] = [];
+  for (const post of posts) {
+    const year = post.date.slice(0, 4) || 'Undated';
+    const last = groups[groups.length - 1];
+    if (last && last.year === year) last.items.push(post);
+    else groups.push({ year, items: [post] });
+  }
 </script>
 
 <svelte:head>
-  <title>Gaanesh — Blog</title>
+  <title>Writing — {identity.name}</title>
+  <meta
+    name="description"
+    content="Notes on security work, studying at NUS, and what I have figured out along the way."
+  />
 </svelte:head>
 
-<main class="relative mx-auto flex max-w-5xl flex-col gap-14 px-4 pb-24 pt-28 sm:gap-16 sm:px-6 md:pt-32">
-  <Hero />
+<div class="phead">
+  <h1>Writing</h1>
+  <p>{identity.tagline}</p>
+</div>
 
-  <section id="posts" use:reveal={{ distance: 24 }} class="space-y-6">
-    <PromptHeading path="posts" command="ls -la --sort=time">
-      {postCount} {postCount === 1 ? 'entry' : 'entries'} · most recent first
-    </PromptHeading>
+{#each groups as group}
+  <div use:reveal>
+    <div class="yrhead">
+      <span class="y">{group.year}</span>
+      <span class="n">{group.items.length} {group.items.length === 1 ? 'post' : 'posts'}</span>
+      <span class="ln"></span>
+    </div>
+    {#each group.items as post (post.slug)}
+      <PostRow {post} />
+    {/each}
+  </div>
+{/each}
 
-    {#if posts.length === 0}
-      <p class="rounded-2xl border border-ghost-200/70 bg-white/85 p-6 font-mono text-sm text-ghost-500 dark:border-ink-600/60 dark:bg-ink-900/60">
-        // archive is empty — writing the next one
-      </p>
-    {:else}
-      <div class="grid gap-5 md:grid-cols-2" use:reveal={{ delay: 60, distance: 20 }}>
-        {#each posts as post, i}
-          <PostCard {post} delay={80 + Math.min(i, 5) * 70} />
-        {/each}
-      </div>
-    {/if}
-  </section>
-</main>
+{#if posts.length === 0}
+  <p class="subnote"><span>The archive is empty. The next one is being written.</span></p>
+{/if}
+
+<div class="subnote" use:reveal>
+  <p>
+    More about the work these come out of at
+    <a href={links.portfolio} target="_blank" rel="noopener noreferrer">gaanesh.com</a>.
+  </p>
+</div>
+
+<Contact
+  line="Happy to chat about anything here, or about security in general."
+  backHref={links.portfolio}
+  backLabel="Back to start"
+/>

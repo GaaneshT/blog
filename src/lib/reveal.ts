@@ -1,95 +1,49 @@
-// Scroll-reveal action (same shape as the portfolio's).
+// Fades an element in when it scrolls into view, then stops observing it.
+//
+// The hidden state is set here in JS rather than in the stylesheet. Svelte
+// actions never run during SSR, so the prerendered HTML ships fully visible
+// and readers with JavaScript off still see everything.
 
-export type RevealOptions = {
-  delay?: number;
-  distance?: number;
-  threshold?: number;
-  once?: boolean;
-};
-
-type RevealState = { options: Required<RevealOptions>; baseTransform: string };
-
-const defaults: Required<RevealOptions> = { delay: 0, distance: 24, threshold: 0.12, once: true };
+const DURATION = 700;
+const EASING = 'cubic-bezier(.2,.7,.2,1)';
 
 let observer: IntersectionObserver | null = null;
-const map = new Map<Element, RevealState>();
-const timers = new Map<Element, number>();
 
 function ensureObserver() {
-  if (observer || typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') return;
+  if (observer || typeof IntersectionObserver === 'undefined') return;
   observer = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
         const node = entry.target as HTMLElement;
-        const state = map.get(node);
-        if (!state) continue;
-        const { options, baseTransform } = state;
-        const prefix = baseTransform ? `${baseTransform} ` : '';
-
-        if (entry.isIntersecting && entry.intersectionRatio >= options.threshold) {
-          requestAnimationFrame(() => {
-            node.style.opacity = '1';
-            node.style.transform = `${prefix}translateY(0)`;
-          });
-          const old = timers.get(node);
-          if (old) window.clearTimeout(old);
-          const t = window.setTimeout(() => {
-            node.style.removeProperty('transition-property');
-            node.style.removeProperty('transition-duration');
-            node.style.removeProperty('transition-timing-function');
-            node.style.removeProperty('transition-delay');
-            if (options.once) {
-              node.style.removeProperty('opacity');
-              node.style.removeProperty('transform');
-            }
-            timers.delete(node);
-          }, 720 + options.delay);
-          timers.set(node, t);
-          if (options.once) {
-            observer?.unobserve(node);
-            map.delete(node);
-          }
-        } else if (!options.once) {
-          node.style.opacity = '0';
-          node.style.transform = `${prefix}translateY(${options.distance}px)`;
-        }
+        node.style.opacity = '1';
+        node.style.transform = 'none';
+        observer?.unobserve(node);
       }
     },
-    { threshold: Array.from({ length: 21 }, (_, i) => i / 20) }
+    { threshold: 0.08 }
   );
 }
 
-export function reveal(node: HTMLElement, options: RevealOptions = {}) {
+export function reveal(node: HTMLElement, delay = 0) {
   if (typeof window === 'undefined') return;
-  const opts: Required<RevealOptions> = { ...defaults, ...options };
-  const computed = window.getComputedStyle(node).transform;
-  const baseTransform = computed === 'none' ? '' : computed;
-  const prefix = baseTransform ? `${baseTransform} ` : '';
+
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  if (reduced) return;
 
   node.style.opacity = '0';
-  node.style.transform = `${prefix}translateY(${opts.distance}px)`;
+  node.style.transform = 'translateY(16px)';
   node.style.transitionProperty = 'opacity, transform';
-  node.style.transitionDuration = '600ms';
-  node.style.transitionTimingFunction = 'cubic-bezier(0.25, 0.15, 0.25, 1)';
-  node.style.transitionDelay = `${opts.delay}ms`;
+  node.style.transitionDuration = `${DURATION}ms`;
+  node.style.transitionTimingFunction = EASING;
+  if (delay) node.style.transitionDelay = `${delay}ms`;
 
-  map.set(node, { options: opts, baseTransform });
   ensureObserver();
   observer?.observe(node);
 
   return {
     destroy() {
-      const t = timers.get(node);
-      if (t) window.clearTimeout(t);
-      timers.delete(node);
       observer?.unobserve(node);
-      map.delete(node);
-      node.style.removeProperty('opacity');
-      node.style.removeProperty('transform');
-      node.style.removeProperty('transition-property');
-      node.style.removeProperty('transition-duration');
-      node.style.removeProperty('transition-timing-function');
-      node.style.removeProperty('transition-delay');
     }
   };
 }

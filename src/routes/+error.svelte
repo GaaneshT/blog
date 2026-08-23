@@ -13,22 +13,17 @@
       .replace(/-+/g, '-')
       .toLowerCase();
 
+  // Old mixed-case URLs are redirected to their lowercase canonical form.
   const redirectToCanonical = (): void => {
     const { pathname, search, hash } = window.location;
-    const canonicalSegments = pathname
-      .split('/')
-      .filter(Boolean)
-      .map(slugifySegment)
-      .filter(Boolean);
+    const canonicalSegments = pathname.split('/').filter(Boolean).map(slugifySegment).filter(Boolean);
     const canonicalPath = canonicalSegments.length ? `/${canonicalSegments.join('/')}` : '/';
     if (canonicalPath !== pathname) {
       window.location.replace(`${canonicalPath}${search}${hash}`);
     }
   };
 
-  onMount(() => {
-    redirectToCanonical();
-  });
+  onMount(redirectToCanonical);
 </script>
 
 <svelte:head>
@@ -36,17 +31,14 @@
   <meta name="robots" content="noindex" />
 </svelte:head>
 
-<main class="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 pt-28 text-center font-mono">
-  <div class="prompt-heading">
-    <span class="user">gaanesh</span><span class="at">@</span><span class="host">blog</span>
-    <span class="sign"> $</span>
-    <span class="cmd">cd ~ # redirecting…</span>
-  </div>
-  <p class="mt-4 text-sm text-ghost-500 dark:text-ghost-400">Sending you to the lowercase URL…</p>
-  <p class="mt-2">
-    <a href="/" class="text-neon-cyan underline decoration-neon-cyan/40 underline-offset-4 transition hover:decoration-neon-cyan">return to the homepage</a>
+<div class="phead">
+  <h1>That page moved</h1>
+  <p>
+    Sending you to the lowercase version of this URL. If nothing happens,
+    <a class="mail" href="/" style="font-size:inherit">head back to the archive</a>.
   </p>
   <noscript>
-    <p class="mt-2 text-xs text-ghost-500">Enable JavaScript or manually update the URL to use lowercase characters.</p>
+    <p>Enable JavaScript, or edit the URL so it is all lowercase.</p>
   </noscript>
-</main>
+  <a class="back" href="/"><span aria-hidden="true">&larr;</span> All writing</a>
+</div>

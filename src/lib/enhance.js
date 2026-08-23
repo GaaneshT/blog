@@ -1,5 +1,4 @@
 import Prism from 'prismjs';
-import 'prismjs/themes/prism-tomorrow.css';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-python.js';
 import 'prismjs/components/prism-bash.js';
@@ -130,16 +129,6 @@ export function enhanceHeadings(root = document) {
     anchor.innerText = '#';
     h.appendChild(anchor);
   });
-}
-
-export function buildToc(root = document) {
-  const items = [];
-  root.querySelectorAll('.markdown-body h2, .markdown-body h3').forEach((h) => {
-    if (!h.id) return;
-    const text = (h.textContent || '').replace(/#$/, '').trim();
-    items.push({ id: h.id, text, level: h.tagName === 'H2' ? 2 : 3 });
-  });
-  return items;
 }
 
 export function renderMath() {

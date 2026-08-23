@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#060814" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <meta name="color-scheme" content="light" />
 
     <link rel="canonical" href="https://blog.gaanesh.com/" />
 
     <!-- Default SEO; per-page _mdLayout overrides via <svelte:head> -->
-    <title>Gaanesh — Blog</title>
-    <meta name="description" content="Notes on security, systems, and personal growth. Writing by Gaanesh Theivasigamani." />
+    <title>Writing — Gaanesh Theivasigamani</title>
+    <meta name="description" content="Notes on security work, studying at NUS, and what I have figured out along the way." />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Gaanesh — Blog" />
-    <meta property="og:description" content="Notes on security, systems, and personal growth." />
+    <meta property="og:title" content="Writing — Gaanesh Theivasigamani" />
+    <meta property="og:description" content="Notes on security work, studying at NUS, and what I have figured out along the way." />
     <meta property="og:url" content="https://blog.gaanesh.com/" />
     <meta property="og:image" content="https://blog.gaanesh.com/og/default.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -36,22 +36,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Public+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
-
-    <!-- Anti-flash theme bootstrap (same as portfolio) -->
-    <script>
-      (function () {
-        try {
-          var saved = localStorage.getItem('theme');
-          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          var dark = saved ? saved === 'dark' : prefersDark;
-          if (!dark) document.documentElement.classList.remove('dark');
-          else document.documentElement.classList.add('dark');
-        } catch (_) {}
-      })();
-    </script>
 
     %sveltekit.head%
   </head>
