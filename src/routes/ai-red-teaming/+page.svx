@@ -1,0 +1,134 @@
+---
+title: "Did AI Actually Make Me Better at Red Teaming?"
+author: "Gaanesh"
+categories: ["AI Security", "Red Teaming", "Offensive Security"]
+excerpt: "My experience using AI assistants during a multi-host red-team exam, where they helped most when I was stuck, but never replaced operator judgment."
+description: "My experience using AI assistants during a multi-host red-team exam, where they helped most when I was stuck, but never replaced operator judgment."
+readingTime: 10
+draft: false
+keywords: ["ai-security", "red-teaming", "llm-security", "offensive-security", "lessons-learned"]
+date: "2026-08-07"
+slug: "ai-red-teaming"
+---
+
+# Did AI actually make me better at red teaming?
+
+_Disclaimer: This is a deliberately redacted account of an authorized certification lab. I am not going to share the exam topology, hostnames, IP addresses, credentials, flags, payloads, or a step-by-step solution. I just wanted to write about what it was like using AI throughout the exam and what I learnt from it._
+
+## Going into the exam
+
+This was the first time I used AI this heavily in a proper multi-host red-team environment. I had Codex and Claude Code open while I worked through the network, and both of them had access to the same engagement folder.
+
+To be clear, they did not "do the exam for me." I was still the one deciding what to attack, checking scope, running the commands, looking at the output, choosing when to change direction, and deciding whether something was actually a finding. What AI changed was how quickly I could get through the work around those decisions.
+
+When I found a strange service, I could ask for a second opinion without stopping to research every possibility from scratch. When a command failed, I could paste the output and ask what assumption I had probably got wrong. When I had ten tabs of logs open and could no longer remember which token came from which host, the shared notes helped pull everything back together.
+
+Basically, I was still driving. AI just meant I had two very fast passengers reading the map, checking my blind spots, and occasionally telling me I had missed a turn twenty minutes ago.
+
+## Where AI actually helped me
+
+The biggest benefit was not getting some magical one-shot exploit. Honestly, most of the important progress came from normal red-team work: service enumeration, following credentials, checking file permissions, understanding what identity a process ran as, and figuring out which internal services trusted one another.
+
+AI helped by making that loop faster.
+
+There were several points where I had an exploit idea that was almost complete but one part was missing. Maybe I needed a credential, a specific API route, or a way to deliver a payload. After staring at the same problem for too long, I would ask the assistants to review everything already in the findings folder and argue for a different path. Sometimes the answer was simply that I had assumed there was only one delivery route. That was enough to get me looking at certificates, deployment files, CI jobs, or another compromised host instead of repeating the same request again.
+
+That is where AI felt most valuable to me. It did not remove the need to understand the attack. It helped me get unstuck before frustration turned into tunnel vision.
+
+It also saved a lot of time on the boring but important things. It could compare long API responses, extract useful details from logs, check command quoting, spot a stale identifier, and turn messy terminal history into a clean sequence for me to verify. During a timed exam, those small savings add up very quickly.
+
+The report was another huge productivity gain. I still reviewed and reran the commands myself, but AI helped turn raw notes into something structured. Without that assistance, I would probably have spent far more time trying to remember why a random command from six hours earlier had mattered.
+
+> AI was most useful when it helped me ask a better next question, not when it tried to give me the entire answer.
+
+## The rabbit-hole problem
+
+Of course, there was a downside. AI is _really_ good at making the next idea sound reasonable.
+
+Because this was an AI-security exam, I started seeing hidden agents everywhere. An unexplained service relationship had to be an agent orchestrator. A configuration value looked like a secret registry. A sample event looked like it might trigger an automated remediation workflow. Some of those ideas were relevant, but quite a few were just very believable rabbit holes.
+
+At one point, I was convinced that an agent-to-agent path had to exist because it fit the theme of the exam so well. I kept trying to make the evidence support the theory instead of asking whether I had actually observed a live consumer. That was backwards.
+
+Password cracking created the same problem in a different form. There is always another wordlist, rule, or mask to try. Sometimes cracking is absolutely the right move. But if every failed attempt only leads to a bigger wordlist, it is very easy to burn hours while feeling productive.
+
+Eventually, I started forcing myself to answer three questions before continuing a branch:
+
+1. What exactly is my hypothesis?
+2. What is the cheapest test that could prove or disprove it?
+3. What result would justify spending more time here?
+
+If I could not answer those, I moved to another host or went back to enumeration. It sounds obvious now, but during an exam, "one more test" has a very strong gravitational pull.
+
+The assistants were useful here too, but only after I gave them the same boundaries. Otherwise, they would happily generate attempt number forty-seven because, technically, attempt number forty-seven _might_ work. 💀
+
+## The difficulties I did not expect
+
+The obvious difficulty was the size of the environment. Once I had several hosts, two network zones, multiple identities, and a few possible attack chains in my head, even simple questions became annoying. Had I already tested this credential here? Was that response from before or after the revert? Did the service actually fail, or had my tunnel quietly died?
+
+That last one happened more than once. A dropped pivot made healthy internal services look offline, and tools did not always fail in an obvious way. Some network scans through the proxy reported services as filtered even though direct application requests worked. I learnt to verify the tunnel and check a known-good service before deciding that a target was dead. Otherwise, I could easily spend an hour debugging the wrong machine.
+
+The AI-backed workflows added their own kind of instability. A technique could work, then fail on the next run because the model slightly changed a command, shortened a filename, or interpreted the same instruction differently. Some CI and review jobs were asynchronous as well, so a dependent step occasionally ran before the earlier job had finished. This made the failures look like broken exploits when they were sometimes just timing or nondeterminism.
+
+That was frustrating because traditional reproduction habits assume the same input should produce the same behavior. Here, I had to define stronger success conditions, capture each intermediate result, and distinguish between "the vulnerability is gone" and "the model did something slightly different this time." A clean retry was sometimes reasonable, but only after I understood what had failed. Repeating a command without knowing why is just gambling with extra steps.
+
+Reverting the machines solved some problems and created others. Host keys changed, machine-derived values changed, temporary accounts and files disappeared, and generated pipeline identifiers were different. Old evidence sitting in my workspace could also look like a fresh result if I did not check timestamps carefully. I started relying more on live derivation, explicit output files, and proof that included the current identity and host state.
+
+There were also defensive controls that blocked the obvious post-exploitation path. Rather than forcing the same credential-dumping technique repeatedly, I had to step back and ask what legitimate process already had access to the information I wanted. That usually led to quieter and more reliable options such as application configuration, scheduled automation, service context, or deployment artifacts.
+
+And then there were the dead ends. Some services were present for realism, some credentials were stale, some promising files were deliberately useless, and one long cracking attempt produced nothing. The difficult part was accepting that a technically interesting lead was not necessarily a productive one. I had to get comfortable writing down "tested, no result" and moving on.
+
+Looking back, the hardest part was not any single exploit. It was maintaining an accurate picture of what was live, what had changed, what I had actually proved, and what only sounded plausible while the clock kept moving.
+
+## AI security was still mostly systems security
+
+The AI parts were definitely interesting. One application had an LLM connected to operational tools and a guardrail that rejected obviously dangerous requests. The useful breakthrough did not come from writing a more persuasive jailbreak. It came from looking at how the application decoded and normalized input before passing it to the tool.
+
+The issue was closer to a parser differential than a conversation with a chatbot. The model could refuse something in one representation while the underlying application interpreted the transformed value differently.
+
+That reinforced a simple point for me: a guardrail is not an authorization boundary. If an LLM can call a powerful tool, the tool still needs strict schemas, canonical parsing, allowlists, isolation, and its own authorization checks. "The model was told not to do it" is not the same thing as "the system cannot do it."
+
+Another system accepted machine-learning models for validation. The application treated the upload like data, but the loader treated the serialized object much more like code. The vulnerable loader was important, but the harder part was finding a trusted path that could actually reach it.
+
+Again, the final chain depended on normal systems questions: Where are certificates stored? Which service can access this gateway? What does the CI job run as? Is there another compromised host that already sits inside the required trust boundary?
+
+The fancy AI vulnerability still needed ordinary enumeration and privilege analysis to become a real compromise.
+
+## When one AI session died
+
+Halfway through the engagement, one of the AI sessions died. Later, I also reverted the lab, which removed tunnels, listeners, temporary files, and running jobs.
+
+Surprisingly, neither event set me back as much as I expected. The important state was not inside the chat or the virtual machines. It was in the engagement folder.
+
+I had a shared progress log, host claims, per-host findings, credential provenance, proof files, and reproduction notes. Both assistants read from and wrote to the same workspace, so I could see what had actually been attempted instead of relying on a conversational summary.
+
+That setup mattered more than having two assistants. Without shared state, I would have had two separate chats confidently repeating the same enumeration. With it, I could use one to explore a different angle while the other reviewed a failed path, and I could step in whenever either one was going too deep into a theory.
+
+I still had to supervise the work. Suggestions were not findings, and generated commands were not evidence. But maintaining that shared "brain" meant I spent much less time re-explaining context and much more time testing useful ideas.
+
+## Reproducing everything humbled me
+
+After the revert, I decided to replay the successful chains from the report exactly as written. I wanted a fresh operator to be able to start with the document and reproduce the results without any of my terminal history.
+
+This caught more problems than I expected.
+
+One command trusted an old SSH host key even though the virtual machine had changed. Another used a process identifier that happened to be correct only during the first run. CI pipeline IDs changed every time. A debugger value depended on live machine state. A listener blocked the same terminal that needed to execute the next command. Some shell variables existed only because I had exported them several hours earlier.
+
+The attacks had worked, but parts of my documentation were basically saying, "Trust me bro, the missing context exists somewhere."
+
+That replay changed how I think about evidence. Getting a shell once proves that something happened. Showing how a clean operator can reach the same result proves that I understood why it happened.
+
+AI helped a lot during this phase. It could audit the report for hidden dependencies, compare the commands against the screenshots, and rewrite brittle steps so they derived runtime values instead of hard-coding them. But I still had to run those commands and confirm that the output matched reality. A beautifully formatted hallucination is still a hallucination.
+
+## So, was using AI worth it?
+
+For me, yes.
+
+It made me faster, especially when I was stuck or overwhelmed by the amount of state in the environment. It helped me consider alternatives sooner, catch fragile commands, connect findings across hosts, and keep the report moving while I focused on the attack itself.
+
+But the productivity gain depended on treating AI as a tool rather than an authority. I had to set the priorities, keep it inside scope, verify every important claim, stop unproductive branches, and own the final decisions.
+
+If I did the exam again, I would still use AI heavily. I would just establish the shared workspace and evidence rules from the first minute, give every hypothesis a time budget, and run full service discovery earlier from each new network position.
+
+The most satisfying part was not watching an assistant produce a clever command. It was reaching a point where AI had made me more productive without making me passive.
+
+I was still doing the red teaming. I just had better tools beside me when I got stuck.
