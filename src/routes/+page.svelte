@@ -42,15 +42,10 @@
 {/each}
 
 {#if posts.length === 0}
-  <p class="subnote"><span>The archive is empty. The next one is being written.</span></p>
+  <div class="subnote">
+    <p>The archive is empty. The next one is being written.</p>
+  </div>
 {/if}
-
-<div class="subnote" use:reveal>
-  <p>
-    More about the work these come out of at
-    <a href={links.portfolio} target="_blank" rel="noopener noreferrer">gaanesh.com</a>.
-  </p>
-</div>
 
 <Contact
   line="Happy to chat about anything here, or about security in general."
