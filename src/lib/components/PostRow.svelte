@@ -9,13 +9,6 @@
   <span class="t">
     {post.title}
     {#if post.excerpt}<em>{post.excerpt}</em>{/if}
-    {#if post.categories.length}
-      <span class="tagrow">
-        {#each post.categories as category}
-          <span>{category}</span>
-        {/each}
-      </span>
-    {/if}
   </span>
   {#if post.readingTime}<span class="r">{post.readingTime} min</span>{/if}
 </a>

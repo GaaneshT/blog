@@ -1,9 +1,8 @@
 <script lang="ts">
   import PostRow from '$lib/components/PostRow.svelte';
-  import Contact from '$lib/components/Contact.svelte';
   import { reveal } from '$lib/reveal';
   import { posts, type Post } from '$lib/posts';
-  import { identity, links } from '$lib/identity';
+  import { identity } from '$lib/identity';
 
   // posts is already sorted newest first, so years come out newest first too.
   const groups: { year: string; items: Post[] }[] = [];
@@ -56,9 +55,3 @@
     <p>The archive is empty. The next one is being written.</p>
   </div>
 {/if}
-
-<Contact
-  line="Happy to chat about anything here, or about security in general."
-  backHref={links.portfolio}
-  backLabel="Back to start"
-/>
